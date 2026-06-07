@@ -44,8 +44,7 @@ Test against a fake home directory:
 │   ├── cursor/rules/agent-commons.mdc
 │   ├── gemini/GEMINI.md
 │   ├── omp/RULES.md
-│   ├── opencode/AGENTS.md
-│   └── windsurf/memories/global_rules.md
+│   └── opencode/AGENTS.md
 └── scripts/
     └── sync-agent-commons.sh
 ```
@@ -108,7 +107,6 @@ Use shared defaults and verify non-trivial changes.
 | `opencode` | `~/.config/opencode/**` | `~/.config/opencode/skills/*` | — | Uses `AGENTS.md` plus skill directories. |
 | `gemini` | `~/.gemini/**` | — | — | Uses `GEMINI.md` as context/profile entrypoint. |
 | `cursor` | `~/.cursor/**` | — | `~/.cursor/rules/*` | Uses `.mdc`/Markdown rules. |
-| `windsurf` | `~/.codeium/windsurf/**` | — | profile-linked | Uses `memories/global_rules.md` for global rules. |
 
 The shared `skills/` layout follows the Agent Skills convention:
 

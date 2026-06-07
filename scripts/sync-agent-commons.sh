@@ -9,7 +9,7 @@ TARGET_HOME="${HOME}"
 STAMP="$(date +%Y%m%d%H%M%S)"
 DRY_RUN=0
 SELECTED="all"
-SUPPORTED="claude|omp|agents|codex|opencode|gemini|cursor|windsurf|all"
+SUPPORTED="claude|omp|agents|codex|opencode|gemini|cursor|all"
 
 usage() {
   printf '%s\n' \
@@ -28,7 +28,6 @@ usage() {
     '  opencode  ~/.config/opencode' \
     '  gemini    ~/.gemini' \
     '  cursor    ~/.cursor' \
-    '  windsurf  ~/.codeium/windsurf' \
     '' \
     'Options:' \
     '  --dry-run       print actions without changing files' \
@@ -66,7 +65,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 case "$SELECTED" in
-  all|claude|omp|agents|codex|opencode|gemini|cursor|windsurf) ;;
+  all|claude|omp|agents|codex|opencode|gemini|cursor) ;;
   *) echo "ERROR: unknown section: $SELECTED" >&2; exit 2 ;;
 esac
 
@@ -206,7 +205,6 @@ should_link codex && link_agent codex "$TARGET_HOME/.codex" "$TARGET_HOME/.codex
 should_link opencode && link_agent opencode "$TARGET_HOME/.config/opencode" "$TARGET_HOME/.config/opencode/skills" ""
 should_link gemini && link_agent gemini "$TARGET_HOME/.gemini" "" ""
 should_link cursor && link_agent cursor "$TARGET_HOME/.cursor" "" "$TARGET_HOME/.cursor/rules"
-should_link windsurf && link_agent windsurf "$TARGET_HOME/.codeium/windsurf" "" ""
 
 echo
 echo "Done. Agent commons linked from $ROOT."
