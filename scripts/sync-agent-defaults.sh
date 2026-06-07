@@ -2,7 +2,7 @@
 # Symlink shared agent defaults into agent-native config locations.
 # Dynamic: scans rules/, skills/, and profiles/<agent>/ so future files need no script edits.
 set -euo pipefail
-shopt -s nullglob dotglob globstar
+shopt -s nullglob dotglob
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TARGET_HOME="${HOME}"
@@ -126,19 +126,29 @@ link_path() {
   run ln -s "$src" "$dest"
 }
 
+link_profile_dir() {
+  local src_dir="$1"
+  local dest_dir="$2"
+  local src name
+
+  for src in "$src_dir"/*; do
+    [[ -e "$src" || -L "$src" ]] || continue
+    name="$(basename "$src")"
+    if [[ -d "$src" && ! -L "$src" ]]; then
+      link_profile_dir "$src" "$dest_dir/$name"
+    elif [[ -f "$src" || -L "$src" ]]; then
+      link_path "$src" "$dest_dir/$name"
+    fi
+  done
+}
+
 link_profile_tree() {
   local agent="$1"
   local dest_root="$2"
   local src_root="$ROOT/profiles/$agent"
   [[ -d "$src_root" ]] || return 0
 
-  local src rel dest
-  for src in "$src_root"/**/*; do
-    [[ -f "$src" ]] || continue
-    rel="${src#"$src_root/"}"
-    dest="$dest_root/$rel"
-    link_path "$src" "$dest"
-  done
+  link_profile_dir "$src_root" "$dest_root"
 }
 
 link_skills_tree() {
