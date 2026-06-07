@@ -1,6 +1,6 @@
-# agent-defaults
+# agent-commons
 
-Private, git-backed agent defaults shared across local AI agent CLIs.
+Private, git-backed commons for agent rules, skills, and profiles across local AI agent CLIs.
 
 The repo keeps reusable rules, skills, and agent profiles in one place. `scripts/sync-agent-defaults.sh` symlinks everything into each agent's native config paths.
 
