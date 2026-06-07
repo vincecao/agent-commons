@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Symlink shared agent defaults into agent-native config locations.
+# Symlink shared agent commons into agent-native config locations.
 # Dynamic: scans rules/, skills/, and profiles/<agent>/ so future files need no script edits.
 set -euo pipefail
 shopt -s nullglob dotglob
@@ -9,21 +9,26 @@ TARGET_HOME="${HOME}"
 STAMP="$(date +%Y%m%d%H%M%S)"
 DRY_RUN=0
 SELECTED="all"
+SUPPORTED="claude|omp|agents|codex|opencode|gemini|cursor|windsurf|all"
 
 usage() {
   printf '%s\n' \
-    'usage: sync-agent-defaults.sh [--dry-run] [--home PATH] [--only claude|omp|agents|codex|all]' \
+    "usage: sync-agent-commons.sh [--dry-run] [--home PATH] [--only $SUPPORTED]" \
     '' \
     'Dynamic inputs:' \
-    '  skills/*/SKILL.md        linked into enabled agent skill roots' \
-    '  rules/*.md, rules/*.mdc  linked into enabled agent rule roots' \
+    '  skills/*/SKILL.md        linked into each section with a skill root' \
+    '  rules/*.md, rules/*.mdc  linked into each section with a rule root' \
     '  profiles/<agent>/**      linked into that agent profile root' \
     '' \
-    'Sections:' \
-    '  claude  profile: ~/.claude       skills: ~/.claude/skills       rules: ~/.claude/rules' \
-    '  omp     profile: ~/.omp/agent    skills: ~/.omp/agent/skills    rules: ~/.omp/agent/rules' \
-    '  agents  profile: ~/.agents       skills: ~/.agents/skills       rules: ~/.agents/rules' \
-    '  codex   profile: ~/.codex        skills: ~/.codex/skills        rules: ~/.codex/rules' \
+    'Common sections:' \
+    '  claude    ~/.claude' \
+    '  omp       ~/.omp/agent' \
+    '  agents    ~/.agents' \
+    '  codex     ~/.codex' \
+    '  opencode  ~/.config/opencode' \
+    '  gemini    ~/.gemini' \
+    '  cursor    ~/.cursor' \
+    '  windsurf  ~/.codeium/windsurf' \
     '' \
     'Options:' \
     '  --dry-run       print actions without changing files' \
@@ -61,7 +66,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 case "$SELECTED" in
-  all|claude|omp|agents|codex) ;;
+  all|claude|omp|agents|codex|opencode|gemini|cursor|windsurf) ;;
   *) echo "ERROR: unknown section: $SELECTED" >&2; exit 2 ;;
 esac
 
@@ -154,6 +159,7 @@ link_profile_tree() {
 link_skills_tree() {
   local dest_root="$1"
   local skill_dir name
+  [[ -n "$dest_root" ]] || return 0
   [[ -d "$ROOT/skills" ]] || return 0
 
   for skill_dir in "$ROOT"/skills/*; do
@@ -167,6 +173,7 @@ link_skills_tree() {
 link_rules_tree() {
   local dest_root="$1"
   local rule_file name
+  [[ -n "$dest_root" ]] || return 0
   [[ -d "$ROOT/rules" ]] || return 0
 
   for rule_file in "$ROOT"/rules/*.md "$ROOT"/rules/*.mdc; do
@@ -179,8 +186,8 @@ link_rules_tree() {
 link_agent() {
   local agent="$1"
   local profile_root="$2"
-  local skills_root="$3"
-  local rules_root="$4"
+  local skills_root="${3:-}"
+  local rules_root="${4:-}"
 
   section "$agent"
   link_profile_tree "$agent" "$profile_root"
@@ -196,6 +203,10 @@ should_link claude && link_agent claude "$TARGET_HOME/.claude" "$TARGET_HOME/.cl
 should_link omp && link_agent omp "$TARGET_HOME/.omp/agent" "$TARGET_HOME/.omp/agent/skills" "$TARGET_HOME/.omp/agent/rules"
 should_link agents && link_agent agents "$TARGET_HOME/.agents" "$TARGET_HOME/.agents/skills" "$TARGET_HOME/.agents/rules"
 should_link codex && link_agent codex "$TARGET_HOME/.codex" "$TARGET_HOME/.codex/skills" "$TARGET_HOME/.codex/rules"
+should_link opencode && link_agent opencode "$TARGET_HOME/.config/opencode" "$TARGET_HOME/.config/opencode/skills" ""
+should_link gemini && link_agent gemini "$TARGET_HOME/.gemini" "" ""
+should_link cursor && link_agent cursor "$TARGET_HOME/.cursor" "" "$TARGET_HOME/.cursor/rules"
+should_link windsurf && link_agent windsurf "$TARGET_HOME/.codeium/windsurf" "" ""
 
 echo
-echo "Done. Agent defaults linked from $ROOT."
+echo "Done. Agent commons linked from $ROOT."

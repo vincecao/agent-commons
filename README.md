@@ -2,101 +2,166 @@
 
 Shared rules, skills, profiles, and sync script for local AI agent CLIs.
 
-Keep agent defaults in one git-backed repo. `scripts/sync-agent-defaults.sh` symlinks them into each agent's native config paths.
+Keep agent defaults in one git-backed repo. `scripts/sync-agent-commons.sh` symlinks them into each agent's native config paths.
 
-## Layout
+## Quick start
 
+```bash
+gh repo clone vincecao/agent-commons ~/agents/agent-commons
+cd ~/agents/agent-commons
+./scripts/sync-agent-commons.sh --dry-run
+./scripts/sync-agent-commons.sh
 ```
+
+Target one agent:
+
+```bash
+./scripts/sync-agent-commons.sh --only omp
+./scripts/sync-agent-commons.sh --only claude
+./scripts/sync-agent-commons.sh --only opencode
+```
+
+Test against a fake home directory:
+
+```bash
+./scripts/sync-agent-commons.sh --home /tmp/agent-home --dry-run
+```
+
+## Repository layout
+
+```text
 .
-├── rules/                    # shared rule files; all files are linked dynamically
-│   └── defaults.md
-├── skills/                   # Agent Skill directories; each must contain SKILL.md
+├── rules/                         # Shared rule files; linked dynamically
+│   ├── defaults.md
+│   └── rtk.md
+├── skills/                        # Agent Skill directories; linked dynamically
 │   └── example-skill/
 │       └── SKILL.md
-├── profiles/                 # agent-specific entrypoint files; linked dynamically
-│   ├── claude/
-│   │   └── CLAUDE.md
-│   ├── omp/
-│   │   └── RULES.md
-│   ├── codex/
-│   │   └── AGENTS.md
-│   └── agents/
-│       └── README.md
+├── profiles/                      # Agent-specific entrypoints; linked dynamically
+│   ├── agents/README.md
+│   ├── claude/CLAUDE.md
+│   ├── codex/AGENTS.md
+│   ├── cursor/rules/agent-commons.mdc
+│   ├── gemini/GEMINI.md
+│   ├── omp/RULES.md
+│   ├── opencode/AGENTS.md
+│   └── windsurf/memories/global_rules.md
 └── scripts/
-    └── sync-agent-defaults.sh
+    └── sync-agent-commons.sh
 ```
 
-## How linking works
+## Dynamic linking model
 
-Dynamic discovery:
+The script scans content, so future files need no script edits.
 
-- `skills/*/SKILL.md` → linked into every enabled agent skill directory
-- `rules/*.md` and `rules/*.mdc` → linked into shared rule directories
-- `profiles/<agent>/**` → linked into that agent's native config root, preserving relative paths
+```text
+skills/*/SKILL.md        -> every configured skill root
+rules/*.md, rules/*.mdc  -> every configured rule root
+profiles/<agent>/**      -> that agent's profile root, preserving paths
+```
 
-Default agent roots:
+Example: add a new skill.
 
-| Section | Profile root | Skills root | Rules root |
-|---|---|---|---|
-| `claude` | `~/.claude` | `~/.claude/skills` | `~/.claude/rules` |
-| `omp` | `~/.omp/agent` | `~/.omp/agent/skills` | `~/.omp/agent/rules` |
-| `agents` | `~/.agents` | `~/.agents/skills` | `~/.agents/rules` |
-| `codex` | `~/.codex` | `~/.codex/skills` | `~/.codex/rules` |
+```text
+skills/release-helper/
+└── SKILL.md
+```
 
-## Usage
-
-Preview all links:
+Then re-run:
 
 ```bash
-./scripts/sync-agent-defaults.sh --dry-run
+./scripts/sync-agent-commons.sh
 ```
 
-Link all sections:
+Example: add a new shared rule.
+
+```markdown
+<!-- rules/code-review.md -->
+---
+description: Shared review standards
+alwaysApply: false
+---
+
+# Code Review
+
+- Report only actionable findings.
+- Include exact file and line when possible.
+```
+
+Example: add an agent-specific profile file.
+
+```markdown
+<!-- profiles/omp/RULES.md -->
+# OMP Always-On Rules
+
+Use shared defaults and verify non-trivial changes.
+```
+
+## Supported agents and frameworks
+
+| Section | Profile files | Skills | Rules | Notes |
+|---|---|---|---|---|
+| `claude` | `~/.claude/**` | `~/.claude/skills/*` | `~/.claude/rules/*` | `profiles/claude/CLAUDE.md` can `@` shared rule files. |
+| `omp` | `~/.omp/agent/**` | `~/.omp/agent/skills/*` | `~/.omp/agent/rules/*` | Top-level `~/.omp/agent/RULES.md` is sticky always-apply. |
+| `agents` | `~/.agents/**` | `~/.agents/skills/*` | `~/.agents/rules/*` | Standard `.agent` / `.agents` convention used by multiple tools. |
+| `codex` | `~/.codex/**` | `~/.codex/skills/*` | `~/.codex/rules/*` | `AGENTS.md` is the main profile entrypoint. |
+| `opencode` | `~/.config/opencode/**` | `~/.config/opencode/skills/*` | — | Uses `AGENTS.md` plus skill directories. |
+| `gemini` | `~/.gemini/**` | — | — | Uses `GEMINI.md` as context/profile entrypoint. |
+| `cursor` | `~/.cursor/**` | — | `~/.cursor/rules/*` | Uses `.mdc`/Markdown rules. |
+| `windsurf` | `~/.codeium/windsurf/**` | — | profile-linked | Uses `memories/global_rules.md` for global rules. |
+
+The shared `skills/` layout follows the Agent Skills convention:
+
+```yaml
+---
+name: my-skill
+description: >
+  Short trigger-oriented description. Mention when the skill should be used.
+---
+```
+
+```markdown
+# My Skill
+
+Operational instructions go here.
+```
+
+## Script behavior
 
 ```bash
-./scripts/sync-agent-defaults.sh
+./scripts/sync-agent-commons.sh --help
 ```
 
-Target one section:
-
-```bash
-./scripts/sync-agent-defaults.sh --only omp
-./scripts/sync-agent-defaults.sh --only claude
-```
-
-Set a different home directory for testing:
-
-```bash
-./scripts/sync-agent-defaults.sh --home /tmp/agent-home --dry-run
-```
-
-## Safety
+Safety rules:
 
 - Correct symlink: left untouched.
 - Wrong symlink: relinked.
 - Existing real file/dir: moved to `*.backup.<timestamp>`.
 - Missing source: hard fail.
 
-## Customize
+## Customizing sections
 
-Add a skill:
+`scripts/sync-agent-commons.sh` has one `link_agent` call per supported section:
 
-```text
-skills/my-skill/SKILL.md
+```bash
+should_link omp && link_agent omp \
+  "$TARGET_HOME/.omp/agent" \
+  "$TARGET_HOME/.omp/agent/skills" \
+  "$TARGET_HOME/.omp/agent/rules"
 ```
 
-Add a shared rule:
+Add another framework by adding:
 
-```text
-rules/my-rule.md
+1. a `profiles/<name>/` directory,
+2. a section in the `case` allow-list,
+3. one `link_agent <name> <profile-root> <skills-root> <rules-root>` call.
+
+Use an empty string for unsupported roots:
+
+```bash
+should_link gemini && link_agent gemini "$TARGET_HOME/.gemini" "" ""
 ```
 
-Add an agent-specific entrypoint:
+## License
 
-```text
-profiles/omp/RULES.md
-profiles/codex/AGENTS.md
-profiles/claude/CLAUDE.md
-```
-
-Re-run `scripts/sync-agent-defaults.sh`; no script edit needed.
+MIT
