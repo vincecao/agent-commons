@@ -6,8 +6,8 @@ Shared agent rules, skills, profiles, and sync tooling for local AI agent CLIs.
 
 ## What this repo does
 
-- Stores shared rule files in `rules/`.
-- Stores portable Agent Skills in `skills/`.
+- Stores private local rule files in ignored `rules/`.
+- Stores private local Agent Skills in ignored `skills/`.
 - Stores tool-specific entrypoints in `profiles/<agent>/`.
 - Runs `scripts/sync-agent-commons.ts` to install symlinks into local agent config paths.
 - Backs up pre-existing user files before replacing them with managed symlinks.
@@ -43,13 +43,18 @@ pnpm sync --home /tmp/agent-home --only cursor
 ```text
 .
 ├── .agent-commons-id              # Ownership marker for safe relinking
-├── rules/                         # Shared rule files; linked dynamically
-│   ├── defaults.md
-│   └── rtk.md
-├── skills/                        # Agent Skill directories; linked dynamically
-│   └── example-skill/
-│       └── SKILL.md
-├── profiles/                      # Agent-specific entrypoints; linked dynamically
+├── rules/                         # Ignored: your private synced rule files
+│   └── .gitkeep
+├── skills/                        # Ignored: your private synced Agent Skills
+│   └── .gitkeep
+├── examples/                      # Tracked examples; safe for public repo
+│   ├── rules/
+│   │   ├── defaults.md
+│   │   └── rtk.md
+│   └── skills/
+│       └── example-skill/
+│           └── SKILL.md
+├── profiles/                      # Tracked agent-specific entrypoints
 │   ├── agents/README.md
 │   ├── claude/CLAUDE.md
 │   ├── codex/AGENTS.md
@@ -69,9 +74,28 @@ pnpm sync --home /tmp/agent-home --only cursor
     └── sync.test.ts
 ```
 
+## Private content policy
+
+`rules/` and `skills/` are intentionally gitignored so personal prompts, workflows, and local machine assumptions do not get pushed by accident.
+
+```gitignore
+/rules/*
+!/rules/.gitkeep
+/skills/*
+!/skills/.gitkeep
+```
+
+Use `examples/` for public templates. Copy examples into the ignored live directories when you want to activate them:
+
+```bash
+cp examples/rules/defaults.md rules/defaults.md
+cp -R examples/skills/example-skill skills/example-skill
+pnpm sync
+```
+
 ## Dynamic linking model
 
-The sync command scans repo content. Adding a new rule, skill, or profile file usually needs no script change.
+The sync command scans repo content. Adding a new private rule, skill, or profile file usually needs no script change.
 
 ```text
 skills/*/SKILL.md        -> every configured skill root
@@ -116,10 +140,10 @@ pnpm sync
 
 | Section | Profile root | Skills root | Rules root | Notes |
 |---|---|---|---|---|
-| `claude` | `~/.claude/**` | `~/.claude/skills/*` | `~/.claude/rules/*` | `profiles/claude/CLAUDE.md` can include shared rules. |
+| `claude` | `~/.claude/**` | `~/.claude/skills/*` | `~/.claude/rules/*` | Uses `CLAUDE.md` as profile entrypoint. |
 | `omp` | `~/.omp/agent/**` | `~/.omp/agent/skills/*` | `~/.omp/agent/rules/*` | Top-level `RULES.md` is OMP's sticky always-apply entrypoint. |
 | `agents` | `~/.agents/**` | `~/.agents/skills/*` | `~/.agents/rules/*` | Generic `.agents` convention used by multiple tools. |
-| `codex` | `~/.codex/**` | `~/.codex/skills/*` | `~/.codex/rules/*` | `AGENTS.md` is the main profile entrypoint. |
+| `codex` | `~/.codex/**` | `~/.codex/skills/*` | `~/.codex/rules/*` | Uses `AGENTS.md` as profile entrypoint. |
 | `opencode` | `~/.config/opencode/**` | `~/.config/opencode/skills/*` | — | Uses `AGENTS.md` plus skill directories. |
 | `gemini` | `~/.gemini/**` | — | — | Uses `GEMINI.md` as profile/context entrypoint. |
 | `cursor` | `~/.cursor/**` | — | `~/.cursor/rules/*` | Uses `.mdc`/Markdown rules. |
@@ -167,7 +191,8 @@ This means first sync migrates local manual files into backups. After that, agen
 
 ## For agents editing this repo
 
-- Keep shared, tool-agnostic instructions in `rules/` or `skills/`.
+- Treat `rules/` and `skills/` as private local state; they are ignored by git on purpose.
+- Put public/shareable examples under `examples/`, not live `rules/` or `skills/`.
 - Keep tool-specific entrypoints under `profiles/<agent>/`.
 - Do not hardcode new file names in sync logic unless adding a new agent section.
 - Update `SECTION_NAMES` and `SECTION_CONFIGS` in `src/sections.ts` when adding a new supported framework.

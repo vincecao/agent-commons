@@ -21,6 +21,12 @@ yarn-error.log*
 .env.*
 !.env.example
 
+# personal synced content
+/rules/*
+!/rules/.gitkeep
+/skills/*
+!/skills/.gitkeep
+
 # sync backups
 *.backup.*
 
