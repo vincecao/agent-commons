@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, readlinkSync, symlinkSync, unlinkSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readlinkSync, renameSync, symlinkSync, unlinkSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { safeLstat, shellQuote } from "./fs-utils";
 
@@ -8,13 +8,14 @@ const OWNER_KEY = "agent-commons/v1";
 export interface LinkTotals {
   linked: number;
   relinked: number;
-  skipped: number;
+  backedUp: number;
   ok: number;
 }
 
 export interface LinkContext {
   readonly root: string;
   readonly dryRun: boolean;
+  readonly timestamp: string;
   readonly log: (line: string) => void;
   readonly totals: LinkTotals;
 }
@@ -27,19 +28,16 @@ export function linkPath(src: string, dest: string, context: LinkContext): void 
 
   const destStat = safeLstat(dest);
   if (!destStat) {
-    context.totals.linked += 1;
-    context.log(`link   ${dest} -> ${src}`);
-    run(context, ["ln", "-s", src, dest], () => symlinkSync(src, dest));
+    link(src, dest, context);
     return;
   }
 
   if (!destStat.isSymbolicLink()) {
-    context.totals.skipped += 1;
-    context.log(`skip   ${dest} (user file exists)`);
+    backupThenLink(src, dest, context, "user file exists");
     return;
   }
 
-  // Only links marked as agent-commons-owned may be replaced; user files/links stay intact.
+  // Only agent-commons-owned links get direct relink; user links first move aside.
   const current = readlinkSync(dest);
   if (current === src) {
     context.totals.ok += 1;
@@ -48,14 +46,27 @@ export function linkPath(src: string, dest: string, context: LinkContext): void 
   }
 
   if (!isOwnedLink(current, dest)) {
-    context.totals.skipped += 1;
-    context.log(`skip   ${dest} (user link exists: ${current})`);
+    backupThenLink(src, dest, context, `user link exists: ${current}`);
     return;
   }
 
   context.totals.relinked += 1;
   context.log(`relink ${dest} -> ${src} (was ${current})`);
   run(context, ["unlink", dest], () => unlinkSync(dest));
+  link(src, dest, context);
+}
+
+function backupThenLink(src: string, dest: string, context: LinkContext, reason: string): void {
+  const backup = nextBackupPath(dest, context.timestamp);
+  context.totals.backedUp += 1;
+  context.log(`backup ${dest} -> ${backup} (${reason})`);
+  run(context, ["mv", dest, backup], () => renameSync(dest, backup));
+  link(src, dest, context);
+}
+
+function link(src: string, dest: string, context: LinkContext): void {
+  context.totals.linked += 1;
+  context.log(`link   ${dest} -> ${src}`);
   run(context, ["ln", "-s", src, dest], () => symlinkSync(src, dest));
 }
 
@@ -66,6 +77,18 @@ function run(context: LinkContext, command: string[], action: () => void): void 
   }
 
   action();
+}
+
+function nextBackupPath(dest: string, timestamp: string): string {
+  let backup = `${dest}.backup.${timestamp}`;
+  let index = 1;
+
+  while (safeLstat(backup)) {
+    backup = `${dest}.backup.${timestamp}.${index}`;
+    index += 1;
+  }
+
+  return backup;
 }
 
 function isOwnedLink(target: string, dest: string): boolean {

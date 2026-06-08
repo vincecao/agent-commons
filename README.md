@@ -137,10 +137,10 @@ pnpm sync --help
 Safety rules:
 
 - Correct symlink: left untouched.
-- Existing regular file/dir: skipped, never overwritten or moved.
-- Existing user symlink: skipped.
-- Existing agent-commons symlink: relinked to the current checkout.
-- Missing source: hard fail.
+- Existing regular file/dir: moved to `*.backup.<timestamp>`, then replaced by a commons symlink.
+- Existing user symlink: moved to `*.backup.<timestamp>`, then replaced by a commons symlink.
+- Existing agent-commons symlink: relinked to the current checkout without backup.
+- Missing source or missing `.agent-commons-id`: hard fail.
 
 ## Customizing sections
 

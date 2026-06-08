@@ -98,29 +98,49 @@ describe("syncAgentCommons", () => {
     expect(logs.filter(line => line.startsWith("ok     "))).toHaveLength(4);
   });
 
-  it("skips user symlinks without touching their target", () => {
+  it("backs up user symlinks before installing the commons symlink", () => {
     const userTarget = join(tempDir, "user-target");
+    const dest = join(home, ".omp", "agent", "RULES.md");
+    const backup = `${dest}.backup.20260102030405`;
     writeFile(userTarget, "user\n");
-    mkdirSync(join(home, ".omp", "agent"), { recursive: true });
-    symlinkSync(userTarget, join(home, ".omp", "agent", "RULES.md"));
+    mkdirSync(dirname(dest), { recursive: true });
+    symlinkSync(userTarget, dest);
 
-    const summary = syncAgentCommons({ root, home, only: "omp", logger: () => undefined });
+    const summary = syncAgentCommons({
+      root,
+      home,
+      only: "omp",
+      logger: () => undefined,
+      timestamp: "20260102030405",
+    });
 
-    expect(summary.skipped).toBe(1);
+    expect(summary.backedUp).toBe(1);
+    expect(summary.linked).toBe(4);
     expect(existsSync(userTarget)).toBe(true);
-    expect(readlinkSync(join(home, ".omp", "agent", "RULES.md"))).toBe(userTarget);
+    expect(readlinkSync(backup)).toBe(userTarget);
+    expect(readlinkSync(dest)).toBe(join(root, "profiles", "omp", "RULES.md"));
   });
 
-  it("does not relink user symlinks during dry-run", () => {
+  it("does not move user symlinks during dry-run", () => {
     const userTarget = join(tempDir, "user-target");
+    const dest = join(home, ".omp", "agent", "RULES.md");
     writeFile(userTarget, "user\n");
-    mkdirSync(join(home, ".omp", "agent"), { recursive: true });
-    symlinkSync(userTarget, join(home, ".omp", "agent", "RULES.md"));
+    mkdirSync(dirname(dest), { recursive: true });
+    symlinkSync(userTarget, dest);
 
-    const summary = syncAgentCommons({ root, home, only: "omp", dryRun: true, logger: () => undefined });
+    const summary = syncAgentCommons({
+      root,
+      home,
+      only: "omp",
+      dryRun: true,
+      logger: () => undefined,
+      timestamp: "20260102030405",
+    });
 
-    expect(summary.skipped).toBe(1);
-    expect(readlinkSync(join(home, ".omp", "agent", "RULES.md"))).toBe(userTarget);
+    expect(summary.backedUp).toBe(1);
+    expect(summary.linked).toBe(4);
+    expect(readlinkSync(dest)).toBe(userTarget);
+    expect(existsSync(`${dest}.backup.20260102030405`)).toBe(false);
   });
 
   it("relinks symlinks owned by another agent-commons checkout", () => {
@@ -134,18 +154,36 @@ describe("syncAgentCommons", () => {
     const summary = syncAgentCommons({ root, home, only: "omp", logger: () => undefined });
 
     expect(summary.relinked).toBe(1);
+    expect(summary.backedUp).toBe(0);
     expect(readlinkSync(join(home, ".omp", "agent", "RULES.md"))).toBe(join(root, "profiles", "omp", "RULES.md"));
   });
 
-  it("skips blocking real files without moving or overwriting them", () => {
+  it("backs up blocking real files before installing the commons symlink", () => {
     const dest = join(home, ".omp", "agent", "RULES.md");
     writeFile(dest, "local file\n");
 
-    const summary = syncAgentCommons({ root, home, only: "omp", logger: () => undefined });
+    const summary = syncAgentCommons({
+      root,
+      home,
+      only: "omp",
+      logger: () => undefined,
+      timestamp: "20260102030405",
+    });
 
-    expect(summary.skipped).toBe(1);
-    expect(readFileSync(dest, "utf8")).toBe("local file\n");
-    expect(existsSync(join(home, ".omp", "agent", "RULES.md.backup.20260102030405"))).toBe(false);
+    expect(summary.backedUp).toBe(1);
+    expect(readFileSync(`${dest}.backup.20260102030405`, "utf8")).toBe("local file\n");
+    expect(readlinkSync(dest)).toBe(join(root, "profiles", "omp", "RULES.md"));
+  });
+
+  it("keeps backup names collision-safe", () => {
+    const dest = join(home, ".omp", "agent", "RULES.md");
+    writeFile(dest, "local file\n");
+    writeFile(`${dest}.backup.20260102030405`, "existing backup\n");
+
+    syncAgentCommons({ root, home, only: "omp", logger: () => undefined, timestamp: "20260102030405" });
+
+    expect(readFileSync(`${dest}.backup.20260102030405`, "utf8")).toBe("existing backup\n");
+    expect(readFileSync(`${dest}.backup.20260102030405.1`, "utf8")).toBe("local file\n");
   });
 
   it("throws for unknown sections", () => {
@@ -160,8 +198,9 @@ describe("linkPath", () => {
     const context: LinkContext = {
       root,
       dryRun: false,
+      timestamp: "20260102030405",
       log: () => undefined,
-      totals: { linked: 0, relinked: 0, skipped: 0, ok: 0 },
+      totals: { linked: 0, relinked: 0, backedUp: 0, ok: 0 },
     };
 
     expect(() => linkPath(join(root, "missing"), join(home, "dest"), context)).toThrow("Missing source");
