@@ -16,8 +16,8 @@ Shared agent rules, skills, profiles, and sync tooling for local AI agent CLIs.
 ## Quick start
 
 ```bash
-gh repo clone vincecao/agent-commons ~/agents/agent-commons
-cd ~/agents/agent-commons
+gh repo clone vincecao/agent-commons ~/agent-commons
+cd ~/agent-commons
 pnpm install
 pnpm sync --dry-run
 pnpm sync
