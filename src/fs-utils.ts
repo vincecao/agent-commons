@@ -1,5 +1,4 @@
 import { lstatSync, readdirSync, type Dirent, type Stats } from "node:fs";
-import { format } from "date-fns";
 
 export function safeLstat(path: string): Stats | null {
   try {
@@ -17,8 +16,4 @@ export function sortedEntries(dir: string): Dirent[] {
 export function shellQuote(value: string): string {
   if (/^[A-Za-z0-9_./:@%+=,-]+$/.test(value)) return value;
   return `'${value.replaceAll("'", "'\\''")}'`;
-}
-
-export function timestampForBackup(date = new Date()): string {
-  return format(date, "yyyyMMddHHmmss");
 }

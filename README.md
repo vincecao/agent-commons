@@ -137,8 +137,9 @@ pnpm sync --help
 Safety rules:
 
 - Correct symlink: left untouched.
-- Wrong symlink: relinked.
-- Existing real file/dir: moved to `*.backup.<timestamp>`.
+- Existing regular file/dir: skipped, never overwritten or moved.
+- Existing user symlink: skipped.
+- Existing agent-commons symlink: relinked to the current checkout.
 - Missing source: hard fail.
 
 ## Customizing sections

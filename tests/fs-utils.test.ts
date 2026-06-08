@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { safeLstat, shellQuote, sortedEntries, timestampForBackup } from "../src/fs-utils";
+import { safeLstat, shellQuote, sortedEntries } from "../src/fs-utils";
 
 const TEMP_PREFIX = join(tmpdir(), "agent-commons-fs-test-");
 
@@ -46,11 +46,5 @@ describe("shellQuote", () => {
 
   it("quotes spaces and embedded single quotes", () => {
     expect(shellQuote("a user's file")).toBe("'a user'\\''s file'");
-  });
-});
-
-describe("timestampForBackup", () => {
-  it("formats timestamps as compact local datetimes", () => {
-    expect(timestampForBackup(new Date(2026, 0, 2, 3, 4, 5))).toBe("20260102030405");
   });
 });

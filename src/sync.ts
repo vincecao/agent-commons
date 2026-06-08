@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { sortedEntries, timestampForBackup } from "./fs-utils";
+import { sortedEntries } from "./fs-utils";
 import { linkPath, type LinkContext, type LinkTotals } from "./linker";
 import { defaultSections, isSectionSelection, type AgentSection, type SectionName, type SectionSelection } from "./sections";
 
@@ -10,7 +10,6 @@ export interface SyncOptions {
   readonly only?: SectionSelection;
   readonly dryRun?: boolean;
   readonly logger?: (line: string) => void;
-  readonly timestamp?: string;
 }
 
 export interface SyncSummary extends LinkTotals {
@@ -25,10 +24,10 @@ export function syncAgentCommons(options: SyncOptions): SyncSummary {
 
   const log = options.logger ?? console.log;
   const context: LinkContext = {
+    root,
     dryRun: options.dryRun ?? false,
-    timestamp: options.timestamp ?? timestampForBackup(),
     log,
-    totals: { linked: 0, relinked: 0, backedUp: 0, ok: 0 },
+    totals: { linked: 0, relinked: 0, skipped: 0, ok: 0 },
   };
   const sections = defaultSections(resolve(options.home)).filter(section => only === "all" || section.name === only);
 

@@ -21,9 +21,6 @@ yarn-error.log*
 .env.*
 !.env.example
 
-# sync backups
-*.backup.*
-
 # temp files
 .tmp/
 tmp/
