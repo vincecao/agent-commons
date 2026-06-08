@@ -9,7 +9,7 @@ Shared agent rules, skills, profiles, and sync tooling for local AI agent CLIs.
 - Stores private local rule files in ignored `rules/`.
 - Stores private local Agent Skills in ignored `skills/`.
 - Stores tool-specific entrypoints in `profiles/<agent>/`.
-- Runs `scripts/sync-agent-commons.ts` to install symlinks into local agent config paths.
+- Runs `skills/agent-commons/scripts/sync-agent-commons.ts` to install symlinks into local agent config paths.
 - Backs up pre-existing user files before replacing them with managed symlinks.
 - Uses `.agent-commons-id` to identify links from another `agent-commons` checkout and relink them safely.
 
@@ -46,7 +46,11 @@ pnpm sync --home /tmp/agent-home --only cursor
 ├── rules/                         # Ignored: your private synced rule files
 │   └── .gitkeep
 ├── skills/                        # Ignored: your private synced Agent Skills
-│   └── .gitkeep
+│   ├── .gitkeep
+│   └── agent-commons/             # Tracked public management skill
+│       ├── SKILL.md
+│       └── scripts/
+│           └── sync-agent-commons.ts
 ├── examples/                      # Tracked examples; safe for public repo
 │   ├── rules/
 │   │   ├── defaults.md
@@ -62,8 +66,6 @@ pnpm sync --home /tmp/agent-home --only cursor
 │   ├── gemini/GEMINI.md
 │   ├── omp/RULES.md
 │   └── opencode/AGENTS.md
-├── scripts/
-│   └── sync-agent-commons.ts      # Commander CLI
 ├── src/
 │   ├── fs-utils.ts
 │   ├── linker.ts                  # Safe symlink/backup behavior
@@ -76,13 +78,15 @@ pnpm sync --home /tmp/agent-home --only cursor
 
 ## Private content policy
 
-`rules/` and `skills/` are intentionally gitignored so personal prompts, workflows, and local machine assumptions do not get pushed by accident.
+`rules/` and `skills/` are intentionally gitignored so personal prompts, workflows, and local machine assumptions do not get pushed by accident. The one tracked exception is `skills/agent-commons/`, which contains the public management skill and sync CLI.
 
 ```gitignore
 /rules/*
 !/rules/.gitkeep
 /skills/*
 !/skills/.gitkeep
+!/skills/agent-commons/
+!/skills/agent-commons/**
 ```
 
 Use `examples/` for public templates. Copy examples into the ignored live directories when you want to activate them:
@@ -192,7 +196,8 @@ This means first sync migrates local manual files into backups. After that, agen
 ## For agents editing this repo
 
 - Treat `rules/` and `skills/` as private local state; they are ignored by git on purpose.
-- Put public/shareable examples under `examples/`, not live `rules/` or `skills/`.
+- Keep only public/shareable skills under explicit `.gitignore` allowlists such as `skills/agent-commons/`.
+- Put public/shareable examples under `examples/`, not live `rules/` or private `skills/`.
 - Keep tool-specific entrypoints under `profiles/<agent>/`.
 - Do not hardcode new file names in sync logic unless adding a new agent section.
 - Update `SECTION_NAMES` and `SECTION_CONFIGS` in `src/sections.ts` when adding a new supported framework.

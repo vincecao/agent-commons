@@ -11,5 +11,5 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["src/**/*.ts", "scripts/**/*.ts", "tests/**/*.ts", "vitest.config.ts", "tsup.config.ts"]
+  "include": ["src/**/*.ts", "skills/agent-commons/**/*.ts", "tests/**/*.ts", "vitest.config.ts", "tsup.config.ts"]
 }

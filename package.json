@@ -8,7 +8,7 @@
     "sync-agent-commons": "dist/sync-agent-commons.js"
   },
   "scripts": {
-    "sync": "tsx scripts/sync-agent-commons.ts",
+    "sync": "tsx skills/agent-commons/scripts/sync-agent-commons.ts",
     "build": "tsup",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",

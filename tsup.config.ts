@@ -1,7 +1,7 @@
 import { defineConfig } from "tsup";
 
 export default defineConfig({
-  entry: ["scripts/sync-agent-commons.ts"],
+  entry: ["skills/agent-commons/scripts/sync-agent-commons.ts"],
   format: ["esm"],
   target: "node18",
   clean: true,

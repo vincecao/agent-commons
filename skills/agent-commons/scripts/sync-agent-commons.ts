@@ -3,8 +3,8 @@ import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Command, InvalidArgumentError } from "commander";
-import { SECTION_NAMES, isSectionSelection, type SectionSelection } from "../src/sections";
-import { syncAgentCommons } from "../src/sync";
+import { SECTION_NAMES, isSectionSelection, type SectionSelection } from "../../../src/sections";
+import { syncAgentCommons } from "../../../src/sync";
 
 interface CliOptions {
   dryRun?: boolean;

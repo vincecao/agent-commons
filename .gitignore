@@ -26,6 +26,8 @@ yarn-error.log*
 !/rules/.gitkeep
 /skills/*
 !/skills/.gitkeep
+!/skills/agent-commons/
+!/skills/agent-commons/**
 
 # sync backups
 *.backup.*
