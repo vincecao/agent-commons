@@ -1,0 +1,29 @@
+{
+  "name": "agent-commons",
+  "version": "0.1.0",
+  "description": "Shared agent rules, skills, profiles, and symlink sync script.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "sync-agent-commons": "dist/sync-agent-commons.js"
+  },
+  "scripts": {
+    "sync": "tsx scripts/sync-agent-commons.ts",
+    "build": "tsup",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "commander": "^12.1.0",
+    "date-fns": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@vitest/coverage-v8": "^2.1.8",
+    "tsup": "^8.5.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

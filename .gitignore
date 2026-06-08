@@ -1,2 +1,29 @@
+# macOS
 .DS_Store
+
+# dependencies
+node_modules/
+
+# build/test output
+dist/
+coverage/
+.vitest/
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# local env/secrets
+.env
+.env.*
+!.env.example
+
+# sync backups
 *.backup.*
+
+# temp files
+.tmp/
+tmp/

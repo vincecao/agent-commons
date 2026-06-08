@@ -2,29 +2,30 @@
 
 Shared rules, skills, profiles, and sync script for local AI agent CLIs.
 
-Keep agent defaults in one git-backed repo. `scripts/sync-agent-commons.sh` symlinks them into each agent's native config paths.
+Keep agent defaults in one git-backed repo. `scripts/sync-agent-commons.ts` symlinks them into each agent's native config paths.
 
 ## Quick start
 
 ```bash
 gh repo clone vincecao/agent-commons ~/agents/agent-commons
 cd ~/agents/agent-commons
-./scripts/sync-agent-commons.sh --dry-run
-./scripts/sync-agent-commons.sh
+pnpm install
+pnpm sync --dry-run
+pnpm sync
 ```
 
 Target one agent:
 
 ```bash
-./scripts/sync-agent-commons.sh --only omp
-./scripts/sync-agent-commons.sh --only claude
-./scripts/sync-agent-commons.sh --only opencode
+pnpm sync --only omp
+pnpm sync --only claude
+pnpm sync --only opencode
 ```
 
 Test against a fake home directory:
 
 ```bash
-./scripts/sync-agent-commons.sh --home /tmp/agent-home --dry-run
+pnpm sync --home /tmp/agent-home --dry-run
 ```
 
 ## Repository layout
@@ -45,8 +46,12 @@ Test against a fake home directory:
 │   ├── gemini/GEMINI.md
 │   ├── omp/RULES.md
 │   └── opencode/AGENTS.md
-└── scripts/
-    └── sync-agent-commons.sh
+├── scripts/
+│   └── sync-agent-commons.ts
+├── src/
+│   └── sync.ts
+└── tests/
+    └── sync.test.ts
 ```
 
 ## Dynamic linking model
@@ -68,8 +73,7 @@ skills/release-helper/
 
 Then re-run:
 
-```bash
-./scripts/sync-agent-commons.sh
+pnpm sync
 ```
 
 Example: add a new shared rule.
@@ -127,7 +131,7 @@ Operational instructions go here.
 ## Script behavior
 
 ```bash
-./scripts/sync-agent-commons.sh --help
+pnpm sync --help
 ```
 
 Safety rules:
@@ -139,25 +143,42 @@ Safety rules:
 
 ## Customizing sections
 
-`scripts/sync-agent-commons.sh` has one `link_agent` call per supported section:
+Agent sections are defined in `src/sync.ts` as readonly config:
 
-```bash
-should_link omp && link_agent omp \
-  "$TARGET_HOME/.omp/agent" \
-  "$TARGET_HOME/.omp/agent/skills" \
-  "$TARGET_HOME/.omp/agent/rules"
+```typescript
+const SECTION_CONFIGS = [
+  {
+    name: "omp",
+    profileRoot: [".omp", "agent"],
+    skillsRoot: [".omp", "agent", "skills"],
+    rulesRoot: [".omp", "agent", "rules"],
+  },
+] as const;
 ```
 
 Add another framework by adding:
 
 1. a `profiles/<name>/` directory,
-2. a section in the `case` allow-list,
-3. one `link_agent <name> <profile-root> <skills-root> <rules-root>` call.
+2. the section name to `SECTION_NAMES`,
+3. one entry in `SECTION_CONFIGS`.
 
-Use an empty string for unsupported roots:
+Use `null` for unsupported roots:
+
+```typescript
+{
+  name: "gemini",
+  profileRoot: [".gemini"],
+  skillsRoot: null,
+  rulesRoot: null,
+}
+```
+
+## Development
 
 ```bash
-should_link gemini && link_agent gemini "$TARGET_HOME/.gemini" "" ""
+pnpm typecheck
+pnpm test
+pnpm test:coverage
 ```
 
 ## License
