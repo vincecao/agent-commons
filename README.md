@@ -65,7 +65,6 @@ pnpm sync --home /tmp/agent-home --only cursor
 │   ├── codex/AGENTS.md
 │   ├── cursor/rules/agent-commons.mdc
 │   ├── gemini/GEMINI.md
-│   ├── hermes/SOUL.md
 │   ├── omp/RULES.md
 │   └── opencode/AGENTS.md
 ├── src/
@@ -153,7 +152,7 @@ pnpm sync
 | `opencode` | `~/.config/opencode/**` | `~/.config/opencode/skills/*` | — | Uses `AGENTS.md` plus skill directories. |
 | `gemini` | `~/.gemini/**` | — | — | Uses `GEMINI.md` as profile/context entrypoint. |
 | `cursor` | `~/.cursor/**` | — | `~/.cursor/rules/*` | Uses `.mdc`/Markdown rules. |
-| `hermes` | `~/.hermes/**` | `~/.hermes/skills/*` | — | Uses `SOUL.md` as the system-prompt entrypoint. Skills link flat as `~/.hermes/skills/<name>/` (Hermes also supports category dirs). No native rules dir. Syncing backs up Hermes's bundled `SOUL.md` first. |
+| `hermes` | `~/.hermes/**` (opt-in) | `~/.hermes/skills/*` | — | Skills-only by default: skills link flat as `~/.hermes/skills/<name>/` (Hermes also supports category dirs). No native rules dir. No profile files ship, so Hermes's own `SOUL.md` is never touched; create `profiles/hermes/SOUL.md` to opt in to managing it. |
 
 ## Skill format
 
@@ -196,7 +195,7 @@ Rules:
 
 This means first sync migrates local manual files into backups. After that, agent config locations stay in sync with this repo through symlinks.
 
-Hermes-specific caveat: Hermes ships its own Nous-authored `~/.hermes/SOUL.md` (the agent's system prompt). Syncing the `hermes` section replaces it with `profiles/hermes/SOUL.md`, backing the original up as `SOUL.md.backup.<timestamp>`. Fold anything you want to keep from the original into `profiles/hermes/SOUL.md` before syncing, or skip the section (`--only` the others). Hermes has no native rules directory, so `rules/*.md` are not linked for this section — put shared prose in the profile `SOUL.md` instead.
+Hermes-specific caveat: Hermes's `~/.hermes/SOUL.md` is the agent's system prompt (Nous-authored by default). This repo ships no `profiles/hermes/` files, so syncing the `hermes` section only adds skill symlinks and never touches `SOUL.md` or any other Hermes config. To manage `SOUL.md` from this repo, create `profiles/hermes/SOUL.md` yourself — the next sync then backs up the existing file as `SOUL.md.backup.<timestamp>` before linking. Keep that file agent-facing only: it ships as prompt bytes in every Hermes conversation. Hermes has no native rules directory, so `rules/*.md` are not linked for this section.
 
 ## For agents editing this repo
 

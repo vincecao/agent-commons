@@ -24,7 +24,6 @@ beforeEach(() => {
   writeFile(join(root, "profiles", "cursor", "rules", "agent-commons.mdc"), "---\nalwaysApply: true\n---\n# Cursor\n");
   writeFile(join(root, "profiles", "gemini", "GEMINI.md"), "# Gemini\n");
   writeFile(join(root, "profiles", "opencode", "AGENTS.md"), "# OpenCode\n");
-  writeFile(join(root, "profiles", "hermes", "SOUL.md"), "# Hermes\n");
   writeFile(join(root, "skills", "example", "SKILL.md"), "---\nname: example\ndescription: Example\n---\n");
   writeFile(join(root, "skills", "not-a-skill", "README.md"), "ignored\n");
   writeFile(join(root, "rules", "defaults.md"), "# Defaults\n");
@@ -80,11 +79,15 @@ describe("syncAgentCommons", () => {
     expect(existsSync(join(home, ".gemini", "skills"))).toBe(false);
   });
 
-  it("links the hermes SOUL profile and flat skills but no rules", () => {
+  it("links flat skills for hermes without touching its SOUL.md or creating rules", () => {
+    const userSoul = join(home, ".hermes", "SOUL.md");
+    writeFile(userSoul, "# User Soul\n");
+
     const summary = syncAgentCommons({ root, home, only: "hermes", logger: () => undefined });
 
     expect(summary.sections).toEqual(["hermes"]);
-    expect(readlinkSync(join(home, ".hermes", "SOUL.md"))).toBe(join(root, "profiles", "hermes", "SOUL.md"));
+    expect(summary.backedUp).toBe(0);
+    expect(readFileSync(userSoul, "utf8")).toBe("# User Soul\n");
     expect(readlinkSync(join(home, ".hermes", "skills", "example"))).toBe(join(root, "skills", "example"));
     expect(existsSync(join(home, ".hermes", "skills", "not-a-skill"))).toBe(false);
     expect(existsSync(join(home, ".hermes", "rules"))).toBe(false);
