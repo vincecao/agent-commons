@@ -1,6 +1,6 @@
 import { join } from "node:path";
 
-export const SECTION_NAMES = ["claude", "omp", "agents", "codex", "opencode", "gemini", "cursor"] as const;
+export const SECTION_NAMES = ["claude", "omp", "agents", "codex", "opencode", "gemini", "cursor", "hermes"] as const;
 export type SectionName = (typeof SECTION_NAMES)[number];
 export type SectionSelection = SectionName | "all";
 
@@ -53,6 +53,11 @@ const SECTION_CONFIGS = {
     profileRoot: [".cursor"],
     skillsRoot: null,
     rulesRoot: [".cursor", "rules"],
+  },
+  hermes: {
+    profileRoot: [".hermes"],
+    skillsRoot: [".hermes", "skills"],
+    rulesRoot: null,
   },
 } as const satisfies Record<SectionName, SectionConfig>;
 

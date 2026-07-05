@@ -29,6 +29,7 @@ Target one agent:
 pnpm sync --only omp
 pnpm sync --only claude
 pnpm sync --only opencode
+pnpm sync --only hermes
 ```
 
 Test against a fake home directory:
@@ -64,6 +65,7 @@ pnpm sync --home /tmp/agent-home --only cursor
 │   ├── codex/AGENTS.md
 │   ├── cursor/rules/agent-commons.mdc
 │   ├── gemini/GEMINI.md
+│   ├── hermes/SOUL.md
 │   ├── omp/RULES.md
 │   └── opencode/AGENTS.md
 ├── src/
@@ -151,6 +153,7 @@ pnpm sync
 | `opencode` | `~/.config/opencode/**` | `~/.config/opencode/skills/*` | — | Uses `AGENTS.md` plus skill directories. |
 | `gemini` | `~/.gemini/**` | — | — | Uses `GEMINI.md` as profile/context entrypoint. |
 | `cursor` | `~/.cursor/**` | — | `~/.cursor/rules/*` | Uses `.mdc`/Markdown rules. |
+| `hermes` | `~/.hermes/**` | `~/.hermes/skills/*` | — | Uses `SOUL.md` as the system-prompt entrypoint. Skills link flat as `~/.hermes/skills/<name>/` (Hermes also supports category dirs). No native rules dir. Syncing backs up Hermes's bundled `SOUL.md` first. |
 
 ## Skill format
 
