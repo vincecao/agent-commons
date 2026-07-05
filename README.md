@@ -196,6 +196,8 @@ Rules:
 
 This means first sync migrates local manual files into backups. After that, agent config locations stay in sync with this repo through symlinks.
 
+Hermes-specific caveat: Hermes ships its own Nous-authored `~/.hermes/SOUL.md` (the agent's system prompt). Syncing the `hermes` section replaces it with `profiles/hermes/SOUL.md`, backing the original up as `SOUL.md.backup.<timestamp>`. Fold anything you want to keep from the original into `profiles/hermes/SOUL.md` before syncing, or skip the section (`--only` the others). Hermes has no native rules directory, so `rules/*.md` are not linked for this section — put shared prose in the profile `SOUL.md` instead.
+
 ## For agents editing this repo
 
 - Treat `rules/` and `skills/` as private local state; they are ignored by git on purpose.
