@@ -39,6 +39,7 @@ describe("isSectionSelection", () => {
   it("accepts supported sections and rejects unknown names", () => {
     expect(isSectionSelection("all")).toBe(true);
     expect(isSectionSelection("omp")).toBe(true);
+    expect(isSectionSelection("hermes")).toBe(true);
     expect(isSectionSelection("windsurf")).toBe(false);
   });
 });
@@ -76,6 +77,20 @@ describe("syncAgentCommons", () => {
     expect(existsSync(join(home, ".config", "opencode", "skills", "not-a-skill"))).toBe(false);
     expect(readlinkSync(join(home, ".gemini", "GEMINI.md"))).toBe(join(root, "profiles", "gemini", "GEMINI.md"));
     expect(existsSync(join(home, ".gemini", "skills"))).toBe(false);
+  });
+
+  it("links flat skills for hermes without touching its SOUL.md or creating rules", () => {
+    const userSoul = join(home, ".hermes", "SOUL.md");
+    writeFile(userSoul, "# User Soul\n");
+
+    const summary = syncAgentCommons({ root, home, only: "hermes", logger: () => undefined });
+
+    expect(summary.sections).toEqual(["hermes"]);
+    expect(summary.backedUp).toBe(0);
+    expect(readFileSync(userSoul, "utf8")).toBe("# User Soul\n");
+    expect(readlinkSync(join(home, ".hermes", "skills", "example"))).toBe(join(root, "skills", "example"));
+    expect(existsSync(join(home, ".hermes", "skills", "not-a-skill"))).toBe(false);
+    expect(existsSync(join(home, ".hermes", "rules"))).toBe(false);
   });
 
   it("preserves nested profile paths", () => {
