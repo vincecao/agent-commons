@@ -31,6 +31,13 @@ yarn-error.log*
 !/skills/obsidian-vault/
 !/skills/obsidian-vault/**
 
+# personal Obsidian learning vault (skill-feedback records)
+/Agent Learning/
+/.obsidian/
+
+# private payload repo (see skills/agent-commons/scripts/private-backup.sh)
+/.git-private/
+
 # sync backups
 *.backup.*
 

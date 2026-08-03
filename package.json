@@ -9,6 +9,7 @@
   },
   "scripts": {
     "sync": "tsx skills/agent-commons/scripts/sync-agent-commons.ts",
+    "backup": "bash skills/agent-commons/scripts/private-backup.sh",
     "build": "tsup",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",

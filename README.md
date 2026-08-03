@@ -98,6 +98,41 @@ cp -R examples/skills/example-skill skills/example-skill
 pnpm sync
 ```
 
+## Private payload backup
+
+Two repos share one working tree at `~/agent-commons`:
+
+| Repo | Git dir | Visibility | Owns |
+|---|---|---|---|
+| `vincecao/agent-commons` | `.git` | public | harness: `src/`, `profiles/`, `examples/`, `skills/agent-commons/`, `skills/obsidian-vault/` |
+| `vincecao/agent-commons-sync` | `.git-private` | private | payload: `rules/`, private `skills/*`, `Agent Learning/`, `.obsidian/` |
+
+The payload is gitignored in the public repo, so it can never be pushed there by accident. `skills/agent-commons/scripts/private-backup.sh` drives the private git dir over the same worktree, force-adding an explicit pathspec (worktree `.gitignore` rules outrank `.git-private/info/exclude`, so an ignore-inversion would silently match nothing).
+
+```bash
+pnpm backup init            # once per machine: create .git-private, wire the remote
+pnpm backup save            # stage + commit payload changes
+pnpm backup push            # publish to the private remote
+pnpm backup status          # tracked payload count + dirty tracked files
+pnpm backup git log --stat  # any git command against the private repo
+```
+
+Override the remote with `AGENT_COMMONS_PRIVATE_REMOTE`.
+
+### New machine
+
+```bash
+gh repo clone vincecao/agent-commons ~/agent-commons
+cd ~/agent-commons
+bash skills/agent-commons/scripts/private-backup.sh restore
+pnpm install
+pnpm sync
+```
+
+`restore` clones the private repo into `.git-private` and checks the payload out into the worktree; it refuses to clobber existing local files unless you pass `--force`. `pnpm sync` then links the restored rules and skills into every agent section (claude, omp, codex, cursor, …).
+
+Nothing is tracked by both repos, so `git status` in either one stays clean: the public repo ignores the payload, and the private repo ignores nothing but tracks only the payload pathspec (`status.showUntrackedFiles=no` keeps public-repo files out of its view).
+
 ## Dynamic linking model
 
 The sync command scans repo content. Adding a new private rule, skill, or profile file usually needs no script change.
