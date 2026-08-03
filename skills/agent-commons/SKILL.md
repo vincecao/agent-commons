@@ -26,7 +26,7 @@ pnpm sync --only cursor
 
 ## Private payload backup
 
-The gitignored payload (`rules/`, private `skills/*`, `Agent Learning/`, `.obsidian/`) is versioned by a second git dir, `.git-private`, pushed to the private repo `vincecao/agent-commons-sync`. The public repo never sees it.
+The payload is whatever the public repo ignores — `rules/`, private `skills/*`, `Agent Learning/`, `.obsidian/`, plus machine-specific profile files (`profiles/omp/mcp.json`, `profiles/claude/RULES.md`) — versioned by a second git dir, `.git-private`, pushed to the private repo `vincecao/agent-commons-sync`. The public repo never sees it.
 
 ```bash
 pnpm backup save && pnpm backup push
@@ -40,7 +40,7 @@ bash skills/agent-commons/scripts/private-backup.sh restore
 pnpm install && pnpm sync
 ```
 
-Payload selection is an explicit `add -f` pathspec in `scripts/private-backup.sh`; worktree `.gitignore` outranks `.git-private/info/exclude`, so never switch it to ignore-inversion. Public-tracked paths (`skills/agent-commons/`, `skills/obsidian-vault/`, `.gitkeep`) stay excluded so no path is owned by both repos.
+Payload selection derives from `git ls-files --others --ignored` on the public repo, then force-adds that list: worktree `.gitignore` outranks `.git-private/info/exclude`, so never switch it to ignore-inversion. Privatize a file by adding it to `.gitignore` and running `pnpm backup save`; keep profile entrypoints public unless they carry absolute machine paths or employer-specific conventions, so the harness stays usable on its own.
 
 ## Source layout
 

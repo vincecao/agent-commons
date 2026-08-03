@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
-# Backup/restore the gitignored private payload of agent-commons.
+# Backup/restore the private payload of agent-commons.
 #
 # The public repo (origin) carries the harness: sync CLI, profiles, examples.
-# This script drives a SECOND git dir (.git-private) over the SAME worktree that
-# tracks only the private payload and pushes it to a private remote.
+# This script drives a SECOND git dir (.git-private) over the SAME worktree,
+# tracking only what the public repo refuses to hold.
 #
-# Payload paths are force-added: the worktree .gitignore hides them from the
-# public repo, and worktree .gitignore rules outrank .git-private/info/exclude,
-# so `add -f` with an explicit pathspec is the only reliable selector here.
+# Payload = every file the public repo ignores, minus build and machine junk.
+# That keeps the split self-maintaining: privatizing a file means adding it to
+# the public .gitignore, nothing else. Files are force-added because the
+# worktree .gitignore outranks .git-private/info/exclude, so an ignore
+# inversion inside this git dir would silently match nothing.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
@@ -15,19 +17,27 @@ PRIVATE_GIT_DIR="$ROOT/.git-private"
 PRIVATE_REMOTE="${AGENT_COMMONS_PRIVATE_REMOTE:-https://github.com/vincecao/agent-commons-sync.git}"
 PRIVATE_BRANCH=main
 
-# Live private state. Everything here is gitignored in the public repo.
-PAYLOAD=(rules skills "Agent Learning" .obsidian)
-
-# Public-tracked or machine-local paths that must never enter the private repo.
+# Ignored, but rebuildable or machine-local: never worth backing up.
+# Plain (non-`:(glob)`) pathspecs, so `*` also crosses directory separators and
+# a bare `**/name` would NOT match `name` at the repo root.
 PAYLOAD_EXCLUDES=(
-  ':(exclude)skills/agent-commons'
-  ':(exclude)skills/obsidian-vault'
-  # Tracked in the public repo, so the private repo must not own them too.
-  ':(exclude)**/.gitkeep'
-  ':(exclude)**/node_modules/**'
-  ':(exclude)**/.DS_Store'
-  ':(exclude)**/*.backup.*'
+  ':(exclude)*node_modules/*'
+  ':(exclude)dist/*'
+  ':(exclude)coverage/*'
+  ':(exclude).vitest/*'
+  ':(exclude)*tmp/*'
+  ':(exclude).git-private/*'
+  ':(exclude)*.DS_Store'
+  ':(exclude)*.backup.*'
+  ':(exclude).env'
+  ':(exclude).env.*'
+  ':(exclude)*.log'
 )
+
+# Public-repo ignores are the source of truth; anything it tracks stays out.
+payload_files() {
+  git -C "$ROOT" ls-files --others --ignored --exclude-standard -z -- . "${PAYLOAD_EXCLUDES[@]}"
+}
 
 pgit() { git --git-dir="$PRIVATE_GIT_DIR" --work-tree="$ROOT" "$@"; }
 
@@ -72,7 +82,16 @@ require_init() {
 cmd_save() {
   require_init
   local message="${1:-backup: private agent payload $(date -u +%Y-%m-%dT%H:%M:%SZ)}"
-  pgit add -f -- "${PAYLOAD[@]}" "${PAYLOAD_EXCLUDES[@]}"
+  payload_files | pgit add -f --pathspec-from-file=- --pathspec-file-nul
+  # Stages content and deletions for payload files already tracked here; a file
+  # that became public-tracked drops out of payload_files and must be untracked.
+  pgit add -u
+  local orphans
+  orphans="$(comm -12 <(pgit ls-files | sort) <(git -C "$ROOT" ls-files | sort))"
+  if [[ -n "$orphans" ]]; then
+    printf '%s\n' "$orphans" | tr '\n' '\0' | pgit rm -q --cached --pathspec-from-file=- --pathspec-file-nul
+    echo "untracked from private (now public): $(printf '%s' "$orphans" | tr '\n' ' ')"
+  fi
   if pgit diff --cached --quiet; then
     echo "no payload changes to commit"
   else

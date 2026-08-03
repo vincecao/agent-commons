@@ -11,3 +11,7 @@ Follow shared agent defaults:
 - Use existing project conventions before adding new patterns.
 - Verify non-trivial changes before calling work done.
 - Keep replies concise, concrete, and grounded in observed facts.
+- For test update/run/fix loops, delegate to a Composer 2.5 subagent and have it
+  cross-check relevant repo agent rules while tests run.
+- For git/Graphite work, delegate to a git/shell subagent using GPT-5.5 high
+  when available; ask before substituting if that exact model is unavailable.

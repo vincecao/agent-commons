@@ -53,6 +53,8 @@ pnpm sync --home /tmp/agent-home --only cursor
 │       └── scripts/
 │           └── sync-agent-commons.ts
 ├── examples/                      # Tracked examples; safe for public repo
+│   ├── profiles/
+│   │   └── omp/mcp.json           # Template for the ignored personal mcp.json
 │   ├── rules/
 │   │   ├── defaults.md
 │   │   └── rtk.md
@@ -62,10 +64,14 @@ pnpm sync --home /tmp/agent-home --only cursor
 ├── profiles/                      # Tracked agent-specific entrypoints
 │   ├── agents/README.md
 │   ├── claude/CLAUDE.md
+│   ├── claude/RULES.md            # Ignored: employer-specific conventions
 │   ├── codex/AGENTS.md
 │   ├── cursor/rules/agent-commons.mdc
 │   ├── gemini/GEMINI.md
 │   ├── omp/RULES.md
+│   ├── omp/TITLE_SYSTEM.md
+│   ├── omp/extensions/            # OMP extensions linked into ~/.omp/agent
+│   ├── omp/mcp.json               # Ignored: machine-specific MCP servers
 │   └── opencode/AGENTS.md
 ├── src/
 │   ├── fs-utils.ts
@@ -79,7 +85,7 @@ pnpm sync --home /tmp/agent-home --only cursor
 
 ## Private content policy
 
-`rules/` and `skills/` are intentionally gitignored so personal prompts, workflows, and local machine assumptions do not get pushed by accident. The one tracked exception is `skills/agent-commons/`, which contains the public management skill and sync CLI.
+`rules/` and `skills/` are intentionally gitignored so personal prompts, workflows, and local machine assumptions do not get pushed by accident. Tracked exceptions are the public skills `skills/agent-commons/` (management skill and sync CLI) and `skills/obsidian-vault/`. Individual profile files join the ignore list when they carry absolute machine paths or employer-specific conventions.
 
 ```gitignore
 /rules/*
@@ -88,7 +94,15 @@ pnpm sync --home /tmp/agent-home --only cursor
 !/skills/.gitkeep
 !/skills/agent-commons/
 !/skills/agent-commons/**
+!/skills/obsidian-vault/
+!/skills/obsidian-vault/**
+/Agent Learning/
+/.obsidian/
+/profiles/omp/mcp.json
+/profiles/claude/RULES.md
 ```
+
+Everything on that list is backed up by the private repo described in [Private payload backup](#private-payload-backup).
 
 Use `examples/` for public templates. Copy examples into the ignored live directories when you want to activate them:
 
@@ -104,10 +118,12 @@ Two repos share one working tree at `~/agent-commons`:
 
 | Repo | Git dir | Visibility | Owns |
 |---|---|---|---|
-| `vincecao/agent-commons` | `.git` | public | harness: `src/`, `profiles/`, `examples/`, `skills/agent-commons/`, `skills/obsidian-vault/` |
-| `vincecao/agent-commons-sync` | `.git-private` | private | payload: `rules/`, private `skills/*`, `Agent Learning/`, `.obsidian/` |
+| `vincecao/agent-commons` | `.git` | public | harness: `src/`, `examples/`, `profiles/`, `skills/agent-commons/`, `skills/obsidian-vault/` |
+| `vincecao/agent-commons-sync` | `.git-private` | private | everything the public repo ignores: `rules/`, private `skills/*`, `Agent Learning/`, `.obsidian/`, machine-specific profile files |
 
-The payload is gitignored in the public repo, so it can never be pushed there by accident. `skills/agent-commons/scripts/private-backup.sh` drives the private git dir over the same worktree, force-adding an explicit pathspec (worktree `.gitignore` rules outrank `.git-private/info/exclude`, so an ignore-inversion would silently match nothing).
+The payload is exactly the set of files the public `.gitignore` excludes, minus build output and machine junk, so privatizing one more file means adding it to `.gitignore` and running `pnpm backup save` — no list to maintain in two places. `skills/agent-commons/scripts/private-backup.sh` drives the private git dir over the same worktree and force-adds that set, because the worktree `.gitignore` outranks `.git-private/info/exclude` and an ignore inversion inside the private git dir would silently match nothing.
+
+Profile entrypoints stay public so a fresh clone of the harness alone still links working defaults. Only files that cannot be shared move to the payload: `profiles/omp/mcp.json` (absolute binary paths for local MCP servers, with a shareable template in `examples/profiles/omp/mcp.json`) and `profiles/claude/RULES.md` (employer-specific ticket conventions).
 
 ```bash
 pnpm backup init            # once per machine: create .git-private, wire the remote
@@ -129,9 +145,16 @@ pnpm install
 pnpm sync
 ```
 
-`restore` clones the private repo into `.git-private` and checks the payload out into the worktree; it refuses to clobber existing local files unless you pass `--force`. `pnpm sync` then links the restored rules and skills into every agent section (claude, omp, codex, cursor, …).
+`restore` clones the private repo into `.git-private` and checks the payload out into the worktree; it refuses to clobber existing local files unless you pass `--force`. `pnpm sync` then links the restored rules, skills, and profiles into every agent section (claude, omp, codex, cursor, …).
 
-Nothing is tracked by both repos, so `git status` in either one stays clean: the public repo ignores the payload, and the private repo ignores nothing but tracks only the payload pathspec (`status.showUntrackedFiles=no` keeps public-repo files out of its view).
+Without the private repo the harness still works on its own — `pnpm sync` links the public profiles, and personal content starts empty:
+
+```bash
+cp examples/profiles/omp/mcp.json profiles/omp/mcp.json
+cp examples/rules/defaults.md rules/defaults.md
+```
+
+No path is tracked by both repos, so `git status` stays clean on both sides: the public repo ignores the payload, and the private repo tracks only payload paths (`status.showUntrackedFiles=no` keeps public-repo files out of its view). `pnpm backup save` untracks anything that later becomes public-tracked, so the two sets cannot drift into overlap.
 
 ## Dynamic linking model
 

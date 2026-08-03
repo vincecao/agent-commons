@@ -35,6 +35,10 @@ yarn-error.log*
 /Agent Learning/
 /.obsidian/
 
+# machine- or employer-specific profile entrypoints (private payload)
+/profiles/omp/mcp.json
+/profiles/claude/RULES.md
+
 # private payload repo (see skills/agent-commons/scripts/private-backup.sh)
 /.git-private/
 
