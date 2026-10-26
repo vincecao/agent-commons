@@ -33,7 +33,7 @@ npx --yes tsx "$GOLDFISH" --base origin/main --dry-run    # write lane prompts, 
 
 For a Graphite stack, review each branch against its parent (`gt log short` shows the parent), not against `main`. Otherwise every lane re-reviews the whole stack.
 
-Flags: `--lanes auto|1|2|3`, `--tools claude,cursor-agent,omp`, `--review-md <path>` (defaults to `./REVIEW.md`), `--max-lines 3000`, `--timeout 600` (seconds per lane), `--out <dir>`.
+Flags: `--lanes auto|1|2|3`, `--tools claude,cursor-agent,omp`, `--review-md <path>` (defaults to `./REVIEW.md`), `--max-lines 3000`, `--timeout 900` (seconds per lane), `--out <dir>`.
 
 Output: a summary on stdout that starts with severity counts, plus `.agent-review-state/goldfish/<sha>/merged.json` (kept and dropped findings, lanes, reviewed SHA) and each lane's raw output next to it.
 
@@ -50,9 +50,11 @@ Output: a summary on stdout that starts with severity counts, plus `.agent-revie
 |---|---|---|
 | Claude Code | `claude -p <prompt>` | `GOLDFISH_CMD_CLAUDE` |
 | Cursor CLI | `cursor-agent -p --output-format text <prompt>` | `GOLDFISH_CMD_CURSOR_AGENT` |
-| omp | `omp -p <prompt>` | `GOLDFISH_CMD_OMP` |
+| omp | `omp -p --advisor <prompt>` | `GOLDFISH_CMD_OMP`; `GOLDFISH_OMP_ADVISOR=0` drops `--advisor` |
 
-The override replaces the command and its flags, and the prompt is appended as the last argument. Example: `GOLDFISH_CMD_CLAUDE="claude -p --model sonnet"`. Each lane runs in an empty temporary directory, so it cannot read the repo or another lane's files. Global profile files such as `~/.claude/CLAUDE.md` still load, because the CLIs always read them.
+The override replaces the command and its flags, and the prompt is appended as the last argument. Example: `GOLDFISH_CMD_CLAUDE="claude -p --model sonnet"`. If you set `GOLDFISH_CMD_OMP`, include `--advisor` yourself.
+
+omp's advisor is a second model that reviews the omp lane's own transcript and gives that lane notes before it answers. It is enabled per run by `--advisor` (omp `docs/advisor-watchdog.md`, "Headless runs"), and the persisted `advisor.enabled` setting is left unchanged. It stays blind because it only sees that one lane's transcript, plus omp's user-level `~/.omp/agent/WATCHDOG.md` / `WATCHDOG.yml` if you have them. The script writes no lane output until every lane has finished. The advisor model comes from omp's `advisor` role, which falls back to the `slow` role when unset. Set `modelRoles.advisor` in omp config to pick a cheaper reviewer. In print mode omp waits up to 10 minutes for final advisor reviews, so the default `--timeout` is 900 seconds. Each lane runs in an empty temporary directory, so it cannot read the repo or another lane's files. Global profile files such as `~/.claude/CLAUDE.md` still load, because the CLIs always read them.
 
 ## Merge (cheap, no model call)
 

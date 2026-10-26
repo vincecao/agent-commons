@@ -5,6 +5,7 @@ import {
   filterDiff,
   LENSES,
   mergeFindings,
+  ompArgs,
   planLanes,
   type LaneFinding,
 } from "../skills/goldfish-review/scripts/goldfish-review";
@@ -75,6 +76,15 @@ describe("filterDiff", () => {
   });
 });
 
+describe("ompArgs", () => {
+  it("enables the advisor by default and lets GOLDFISH_OMP_ADVISOR=0 turn it off", () => {
+    expect(ompArgs("P", undefined)).toEqual(["-p", "--advisor", "P"]);
+    expect(ompArgs("P", "1")).toEqual(["-p", "--advisor", "P"]);
+    expect(ompArgs("P", "0")).toEqual(["-p", "P"]);
+    expect(ompArgs("P", "false")).toEqual(["-p", "P"]);
+  });
+});
+
 describe("buildPrompt", () => {
   it("gives every lane the shared baseline plus its own emphasis", () => {
     const [first, second] = planLanes(["claude", "omp"], 2);
@@ -98,6 +108,15 @@ describe("extractFindings", () => {
   it("unwraps a JSON envelope with a result string", () => {
     const out = JSON.stringify({ type: "result", result: '{"findings":[{"file":"a.ts","line":1,"summary":"s"}]}' });
     expect(extractFindings(out)).toHaveLength(1);
+  });
+
+  it("ignores advisor notes with braces printed around the answer", () => {
+    const out = [
+      '<advisory severity="nit">prefer {a, b} destructuring</advisory>',
+      '{"findings":[{"file":"a.ts","line":1,"summary":"uses } in text","evidence":"if (x) { y }"}]}',
+      '<advisory severity="concern">check the {retry} path</advisory>',
+    ].join("\n");
+    expect(extractFindings(out)).toEqual([expect.objectContaining({ summary: "uses } in text", evidence: "if (x) { y }" })]);
   });
 
   it("throws on non-JSON output", () => {

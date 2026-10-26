@@ -145,13 +145,38 @@ export function buildPrompt(lane: Lane, diff: string, reviewMd: string | null): 
     .join("\n\n");
 }
 
-/** Pulls the findings object out of tool stdout, tolerating fences and claude's JSON envelope. */
+/** Returns the first balanced `{...}` object that parses, ignoring braces inside strings. */
+function firstJsonObject(text: string): unknown {
+  for (let start = text.indexOf("{"); start >= 0; start = text.indexOf("{", start + 1)) {
+    let depth = 0;
+    let inString = false;
+    for (let index = start; index < text.length; index++) {
+      const char = text[index];
+      if (inString) {
+        if (char === "\\") index++;
+        else if (char === '"') inString = false;
+      } else if (char === '"') inString = true;
+      else if (char === "{") depth++;
+      else if (char === "}" && --depth === 0) {
+        try {
+          return JSON.parse(text.slice(start, index + 1));
+        } catch {
+          break;
+        }
+      }
+    }
+  }
+  throw new Error("no JSON object in lane output");
+}
+
+/**
+ * Pulls the findings object out of tool stdout, tolerating fences, claude's JSON envelope,
+ * and trailing prose such as omp advisor notes printed after the answer.
+ */
 export function extractFindings(stdout: string): LaneFinding[] {
   const parseObject = (text: string): unknown => {
-    const start = text.indexOf("{");
-    const end = text.lastIndexOf("}");
-    if (start < 0 || end <= start) throw new Error("no JSON object in lane output");
-    return JSON.parse(text.slice(start, end + 1));
+    const anchor = text.search(/\{\s*"(findings|result)"/);
+    return firstJsonObject(anchor >= 0 ? text.slice(anchor) : text);
   };
   let parsed = parseObject(stdout) as { findings?: unknown; result?: unknown };
   if (!Array.isArray(parsed.findings) && typeof parsed.result === "string") {
@@ -243,6 +268,12 @@ export function formatSummary(kept: readonly MergedFinding[], lanes: readonly La
   return lines.join("\n");
 }
 
+/** omp lanes run with the advisor (`omp -p --advisor`) unless GOLDFISH_OMP_ADVISOR=0. */
+export function ompArgs(prompt: string, advisorSetting: string | undefined): string[] {
+  const advisor = advisorSetting !== "0" && advisorSetting !== "false";
+  return advisor ? ["-p", "--advisor", prompt] : ["-p", prompt];
+}
+
 function commandFor(tool: ToolName, prompt: string): { cmd: string; args: string[] } {
   const override = process.env[`GOLDFISH_CMD_${tool.replace("-", "_").toUpperCase()}`];
   if (override) {
@@ -255,7 +286,7 @@ function commandFor(tool: ToolName, prompt: string): { cmd: string; args: string
     case "cursor-agent":
       return { cmd: "cursor-agent", args: ["-p", "--output-format", "text", prompt] };
     case "omp":
-      return { cmd: "omp", args: ["-p", prompt] };
+      return { cmd: "omp", args: ompArgs(prompt, process.env.GOLDFISH_OMP_ADVISOR) };
   }
 }
 
@@ -298,7 +329,7 @@ interface CliOptions {
 }
 
 function parseArgs(argv: readonly string[]): CliOptions {
-  const options: CliOptions = { base: "origin/main", lanes: "auto", double: false, out: ".agent-review-state/goldfish", maxLines: 3000, timeoutMs: 600_000, dryRun: false };
+  const options: CliOptions = { base: "origin/main", lanes: "auto", double: false, out: ".agent-review-state/goldfish", maxLines: 3000, timeoutMs: 900_000, dryRun: false };
   for (let index = 0; index < argv.length; index++) {
     const flag = argv[index];
     const value = () => argv[++index] ?? "";
@@ -313,7 +344,7 @@ function parseArgs(argv: readonly string[]): CliOptions {
     else if (flag === "--timeout") options.timeoutMs = Number(value()) * 1000;
     else if (flag === "--dry-run") options.dryRun = true;
     else if (flag === "--help" || flag === "-h") {
-      console.log("Usage: goldfish-review [--base <ref>] [--since <sha>] [--lanes auto|1-3] [--double] [--tools claude,cursor-agent,omp] [--review-md REVIEW.md] [--max-lines 3000] [--timeout 600] [--out dir] [--dry-run]");
+      console.log("Usage: goldfish-review [--base <ref>] [--since <sha>] [--lanes auto|1-3] [--double] [--tools claude,cursor-agent,omp] [--review-md REVIEW.md] [--max-lines 3000] [--timeout 900] [--out dir] [--dry-run]");
       process.exit(0);
     } else throw new Error(`Unknown flag: ${flag}`);
   }
@@ -346,6 +377,7 @@ async function main(argv: readonly string[]): Promise<void> {
     return;
   }
 
+  // Lane outputs are written only after every lane settles, so no lane (or omp's advisor) can read another's findings mid-run.
   const settled = await Promise.allSettled(lanes.map(lane => runLane(lane, buildPrompt(lane, diff.text, reviewMd), options.timeoutMs)));
   const laneResults = settled.flatMap((result, index) => {
     const lane = lanes[index];

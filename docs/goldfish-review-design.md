@@ -36,11 +36,20 @@ The elephant already verifies every surviving finding against source as part of 
 
 Each lane is a new CLI process in an empty temporary directory. Its prompt contains only the lane instructions, `REVIEW.md`, and the diff. It never receives other lanes' output, the PR description, review threads, or the author's reasoning. Global profile files (for example `~/.claude/CLAUDE.md`) still load because the CLIs always read them. That is acceptable, since they are shared conventions, not PR context.
 
+## omp lanes run with the advisor
+
+omp lanes launch as `omp -p --advisor <prompt>`. `--advisor` is a documented omp CLI flag (`docs/cli-reference.md`, `packages/coding-agent/src/cli/args.ts`). It enables the advisor runtime for that one print-mode process and leaves the persisted `advisor.enabled` setting unchanged. `GOLDFISH_OMP_ADVISOR=0` turns it off; `GOLDFISH_CMD_OMP` replaces the whole command.
+
+- **Blindness.** The advisor reviews only its own lane's transcript (the diff prompt, that lane's reasoning and tool calls), and its default tools are read-only (`read`, `grep`, `glob`). It cannot see other lanes. The script writes no lane output until all lanes have settled, and each lane runs in its own empty temp directory. It does load omp's user-level `WATCHDOG.md` / `WATCHDOG.yml`. Those are standing review guidance, not PR context, but a user-level roster can grant extra tools to an advisor, so keep that file read-only for review use.
+- **Coverage.** The advisor gives the omp lane a second opinion inside the lane. It can catch a bug that lane missed, or push back on an unsupported finding before the lane answers. That raises precision more than breadth, and it adds no merge vote: the omp lane still counts as one lane. Coverage across lanes still comes from different tools.
+- **Token cost.** The advisor is separate model usage. With the default `reviewMode: turn` it reviews every primary turn's transcript delta, so the first review re-reads the lane prompt including the whole diff. Expect roughly one extra diff-sized input per omp lane, plus its own reads and notes. That is close to doubling the omp lane's cost, and more if the lane makes many tool calls. The advisor model resolves from omp's `advisor` role, then `slow` when unset. Set `modelRoles.advisor` to a cheaper model, or use a `WATCHDOG.yml` entry with `reviewMode: agent-end` to review only the final answer.
+- **Time.** In print mode omp waits up to 10 minutes for final advisor reviews before exiting, so the per-lane timeout default is 900 seconds.
+
 ## Invocation
 
 See `skills/goldfish-review/SKILL.md`. The script lives in the skill directory, so every profile that receives skills (Claude, omp, `.agents`, Codex, OpenCode, Hermes) resolves the same script through its symlink. Cursor and Gemini receive no skill directories under the current sync model, but they can still run the script by path, and cursor-agent is one of the lane tools.
 
 ## Open questions
 
-- The omp headless flag (`omp -p`) is assumed from the pi CLI family and could not be checked here. Override it with `GOLDFISH_CMD_OMP` if it differs.
+- None of the three CLIs run in the build VM, so lanes were only exercised with stub binaries. `omp -p --advisor` was checked against oh-my-pi's source and docs. `claude -p` and `cursor-agent -p --output-format text` are the tools' standard headless modes, but they were not re-checked against a live install.
 - Lane thresholds (50/400 lines) are starting points; tune them after a few weeks of review state.
