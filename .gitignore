@@ -30,6 +30,11 @@ yarn-error.log*
 !/skills/agent-commons/**
 !/skills/obsidian-vault/
 !/skills/obsidian-vault/**
+!/skills/goldfish-review/
+!/skills/goldfish-review/**
+
+# per-PR review state written by review skills
+.agent-review-state/
 
 # personal Obsidian learning vault (skill-feedback records)
 /Agent Learning/
