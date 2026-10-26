@@ -48,10 +48,15 @@ pnpm sync --home /tmp/agent-home --only cursor
 │   └── .gitkeep
 ├── skills/                        # Ignored: your private synced Agent Skills
 │   ├── .gitkeep
-│   └── agent-commons/             # Tracked public management skill
+│   ├── agent-commons/             # Tracked public management skill
+│   │   ├── SKILL.md
+│   │   └── scripts/
+│   │       └── sync-agent-commons.ts
+│   └── goldfish-review/           # Tracked: blind parallel review lanes
 │       ├── SKILL.md
-│       └── scripts/
-│           └── sync-agent-commons.ts
+│       └── scripts/goldfish-review.ts
+├── docs/
+│   └── goldfish-review-design.md  # Design assessment for goldfish lanes
 ├── examples/                      # Tracked examples; safe for public repo
 │   ├── profiles/
 │   │   └── omp/mcp.json           # Template for the ignored personal mcp.json
@@ -85,7 +90,7 @@ pnpm sync --home /tmp/agent-home --only cursor
 
 ## Private content policy
 
-`rules/` and `skills/` are intentionally gitignored so personal prompts, workflows, and local machine assumptions do not get pushed by accident. Tracked exceptions are the public skills `skills/agent-commons/` (management skill and sync CLI) and `skills/obsidian-vault/`. Individual profile files join the ignore list when they carry absolute machine paths or employer-specific conventions.
+`rules/` and `skills/` are intentionally gitignored so personal prompts, workflows, and local machine assumptions do not get pushed by accident. Tracked exceptions are the public skills `skills/agent-commons/` (management skill and sync CLI), `skills/obsidian-vault/`, and `skills/goldfish-review/` (blind parallel review lanes; run with `pnpm goldfish` or `npx --yes tsx <skill>/scripts/goldfish-review.ts`). Individual profile files join the ignore list when they carry absolute machine paths or employer-specific conventions.
 
 ```gitignore
 /rules/*
@@ -96,6 +101,8 @@ pnpm sync --home /tmp/agent-home --only cursor
 !/skills/agent-commons/**
 !/skills/obsidian-vault/
 !/skills/obsidian-vault/**
+!/skills/goldfish-review/
+!/skills/goldfish-review/**
 /Agent Learning/
 /.obsidian/
 /profiles/omp/mcp.json
