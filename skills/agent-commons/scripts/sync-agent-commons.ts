@@ -1,4 +1,5 @@
 #!/usr/bin/env -S tsx
+import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -32,6 +33,8 @@ program
       only: options.only,
       dryRun: options.dryRun ?? false,
     });
+
+    warnUnsyncedPayload(root);
   });
 
 program.parse();
@@ -51,4 +54,13 @@ function findRepoRoot(startDir: string): string {
     if (parent === current) throw new Error(`Could not find agent-commons root from ${startDir}`);
     current = parent;
   }
+}
+
+// Non-blocking: warn about unsaved private payload or private/public repos out of step with their
+// remotes (last fetched state; no network). Never changes the exit code.
+function warnUnsyncedPayload(root: string): void {
+  if (process.env.AGENT_COMMONS_NO_CHECK) return;
+  const script = resolve(root, "skills/agent-commons/scripts/private-backup.sh");
+  if (!existsSync(script) || !existsSync(resolve(root, ".git-private"))) return;
+  spawnSync("bash", [script, "check", "--warn", "--no-fetch"], { stdio: "inherit" });
 }

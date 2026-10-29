@@ -105,10 +105,100 @@ cmd_save() {
   cmd_status
 }
 
+# Payload files on disk that the private repo doesn't track yet (what `save` would add).
+new_payload() {
+  comm -23 <(payload_files | tr '\0' '\n' | sort) <(pgit ls-files | sort)
+}
+
 cmd_status() {
   require_init
   echo "tracked payload files: $(pgit ls-files | wc -l | tr -d ' ')"
   pgit status --short || true
+  local fresh
+  fresh="$(new_payload)"
+  if [[ -n "$fresh" ]]; then
+    echo "new (not saved yet; \`save\` will add):"
+    printf '%s\n' "$fresh" | sed 's/^/ ?? /'
+  fi
+}
+
+# save -> pull (fast-forward, else rebase) -> push. Never forces.
+cmd_sync() {
+  require_init
+  cmd_save "${1:-}"
+  pgit fetch -q origin "$PRIVATE_BRANCH"
+  local behind ahead
+  read -r behind ahead < <(pgit rev-list --left-right --count "origin/$PRIVATE_BRANCH...HEAD")
+  if [[ "$behind" -gt 0 ]]; then
+    if [[ "$ahead" -eq 0 ]]; then
+      pgit merge -q --ff-only "origin/$PRIVATE_BRANCH"
+      echo "pulled $behind commit(s) (fast-forward)"
+    elif pgit rebase -q "origin/$PRIVATE_BRANCH" >/dev/null 2>&1; then
+      echo "rebased $ahead local commit(s) onto $behind remote commit(s)"
+    else
+      pgit rebase --abort >/dev/null 2>&1 || true
+      die "private repo conflict: local and remote both changed the same payload files. Nothing was pushed or lost. Resolve with: pnpm backup git pull --rebase origin $PRIVATE_BRANCH"
+    fi
+  fi
+  read -r behind ahead < <(pgit rev-list --left-right --count "origin/$PRIVATE_BRANCH...HEAD")
+  if [[ "$ahead" -gt 0 ]]; then
+    pgit push -q -u origin "$PRIVATE_BRANCH"
+    echo "pushed $ahead commit(s) to private remote"
+  fi
+  echo "private repo synced: $(pgit rev-parse --short HEAD)"
+}
+
+# One repo's state: "<label>: <status -sb line>" plus pending lines. Sets PENDING.
+report_repo() {
+  local label="$1"; shift
+  local tag="${label%% *}" head counts behind ahead dirty
+  head="$("$@" status -sb 2>/dev/null | head -1)"
+  echo "$label: $head"
+  if counts="$("$@" rev-list --left-right --count '@{upstream}...HEAD' 2>/dev/null)"; then
+    read -r behind ahead <<<"$counts"
+    [[ "$ahead" -gt 0 ]] && { echo "  pending ($tag): $ahead commit(s) to push"; PENDING=1; }
+    [[ "$behind" -gt 0 ]] && { echo "  pending ($tag): $behind commit(s) to pull"; PENDING=1; }
+  else
+    echo "  pending ($tag): no upstream branch"; PENDING=1
+  fi
+  dirty="$("$@" status --porcelain 2>/dev/null | wc -l | tr -d ' ')"
+  [[ "$dirty" -gt 0 ]] && { echo "  pending ($tag): $dirty changed file(s)"; PENDING=1; }
+  return 0
+}
+
+# check [--no-fetch] [--warn]: both repos' status + ahead/behind.
+# --warn prints only problems (used by `pnpm sync`) and always exits 0.
+cmd_check() {
+  local fetch=1 warn=0 a
+  for a in "$@"; do
+    case "$a" in --no-fetch) fetch=0 ;; --warn) warn=1 ;; esac
+  done
+  PENDING=0
+  local out fresh
+  if [[ "$fetch" -eq 1 ]]; then
+    git -C "$ROOT" fetch -q 2>/dev/null || echo "warning: could not fetch public remote"
+    [[ -d "$PRIVATE_GIT_DIR" ]] && { pgit fetch -q origin 2>/dev/null || echo "warning: could not fetch private remote"; }
+  fi
+  out="$(report_repo "public  (agent-commons)" git -C "$ROOT")"
+  if [[ -d "$PRIVATE_GIT_DIR" ]]; then
+    out+=$'\n'"$(report_repo "private (agent-commons-sync)" pgit)"
+    fresh="$(new_payload | wc -l | tr -d ' ')"
+    [[ "$fresh" -gt 0 ]] && out+=$'\n'"  pending (private): $fresh new private file(s) not saved"
+  else
+    out+=$'\n'"private: not set up (pnpm backup init or restore)"
+  fi
+  if [[ "$warn" -eq 1 ]]; then
+    local problems
+    problems="$(grep -E 'pending|not set up' <<<"$out" || true)"
+    [[ -n "$problems" ]] && printf 'agent-commons warning (sync still ran):\n%s\nrun `pnpm check` for details, `pnpm backup sync` to back up private content\n' "$problems" >&2
+    return 0
+  fi
+  echo "$out"
+  if grep -qE 'pending|not set up' <<<"$out"; then
+    echo "NOT synced: see pending lines above"
+    return 1
+  fi
+  echo "all synced"
 }
 
 cmd_push() {
@@ -157,6 +247,8 @@ case "${1:-}" in
   save) shift; cmd_save "${1:-}" ;;
   status) cmd_status ;;
   push) cmd_push ;;
+  sync) shift; cmd_sync "${1:-}" ;;
+  check) shift; cmd_check "$@" ;;
   pull) cmd_pull ;;
   restore) shift; cmd_restore "${1:-}" ;;
   git) require_init; shift; pgit "$@" ;;
@@ -166,7 +258,9 @@ usage: $0 <command>
 
   init              create .git-private and point it at the private remote
   save [message]    stage + commit the private payload
-  status            tracked payload count and dirty tracked files
+  status            tracked payload count, dirty tracked files, and new unsaved files
+  sync [message]    save, then pull (fast-forward or rebase), then push; stops on conflict
+  check [--no-fetch] both repos: status, ahead/behind, then "all synced" or what's pending
   push              push the private branch to the private remote
   pull              fast-forward the private branch from the private remote
   restore [--force] clone/checkout the payload onto a fresh machine

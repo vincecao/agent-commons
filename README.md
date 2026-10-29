@@ -12,15 +12,15 @@ Shared agent rules, skills, profiles, and sync tooling for local AI agent CLIs.
 
 ### Daily commands
 
-| When | Run |
-|---|---|
-| Changed a rule, skill or profile | `pnpm sync` (add `--dry-run` to preview) |
-| Changed the tooling (tracked files) | `git add … && git commit && git push` |
-| Back up private content | `pnpm backup save && pnpm backup push` |
-| Get private content from another machine | `pnpm backup pull` |
-| Check private repo | `pnpm backup status` (tracked files only; new files show up after `save`) |
+Three commands cover the day:
 
-Check both repos are pushed: `git status -sb` and `pnpm backup git status -sb`.
+| Command | What it does |
+|---|---|
+| `pnpm sync` | Links rules, skills and profiles into every agent (`--dry-run` to preview). Warns, without failing, if private content is unsaved or either repo is out of step with its remote. |
+| `pnpm backup sync` | Backs up private content: save (commit new and changed files), pull from the private remote (fast-forward or rebase), push. Stops with a message on a conflict; never forces. |
+| `pnpm check` | Fetches both remotes, shows `status -sb` and pending pushes/pulls/changes for the public and private repo, then `all synced` or what's pending (exit 1). `--no-fetch` skips the network. |
+
+Tooling changes (tracked files) still go through ordinary `git add/commit/push`.
 
 ## What this repo does
 
@@ -149,7 +149,8 @@ pnpm backup init            # once per machine: create .git-private, wire the re
 pnpm backup save [message]  # stage + commit payload changes (new and modified)
 pnpm backup push            # publish to the private remote
 pnpm backup pull            # fast-forward from the private remote
-pnpm backup status          # tracked payload count + dirty tracked files
+pnpm backup sync [message]  # save + pull (ff or rebase) + push; stops on conflict
+pnpm backup status          # tracked count, dirty tracked files, and new files `save` would add
 pnpm backup restore [--force]  # fresh machine: clone + check out the payload
 pnpm backup git log --stat  # any git command against the private repo
 ```
@@ -191,10 +192,12 @@ No path is tracked by both repos, so `git status` stays clean on both sides: the
 
 ## Troubleshooting
 
-- **`pnpm backup status` doesn't list a new private file.** Expected: it only shows tracked files. Run `pnpm backup save`; it prints the commit. To preview first: `git ls-files --others --ignored --exclude-standard` (then subtract the excludes above).
+- **Is everything backed up?** `pnpm check`. Anything not synced is listed as `pending (public|private): …`.
+- **What would a backup add?** `pnpm backup status` lists new files as `??` (excluded files never appear).
 - **A file should be private but shows in public `git status`.** Add it to `.gitignore`, then `git rm --cached <file>` and `pnpm backup save`.
 - **A private file should become public.** Remove it from `.gitignore`, `git add` it; the next `pnpm backup save` untracks it from the private repo.
-- **`pnpm backup push` rejected.** Another machine pushed first: `pnpm backup pull`, then push again. Never force-push.
+- **`pnpm backup sync` stops with "private repo conflict".** Both machines changed the same private file. Nothing was pushed or lost; run `pnpm backup git pull --rebase origin main`, fix the files, `pnpm backup git rebase --continue`, then `pnpm backup sync`. Never force-push.
+- **`pnpm sync` prints "agent-commons warning".** Informational; links were still made. Run `pnpm backup sync` and/or push the public repo. Set `AGENT_COMMONS_NO_CHECK=1` to silence it (e.g. with `--home` test dirs).
 - **`restore` refuses to run.** Local files differ from the backup; save them (`pnpm backup save`) or rerun with `--force` to overwrite.
 - **A sync replaced my file.** It was moved to `*.backup.<timestamp>` next to the link; copy it back into `rules/`, `skills/` or `profiles/` and re-run `pnpm sync`.
 

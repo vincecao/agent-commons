@@ -29,12 +29,12 @@ pnpm sync --only cursor
 The payload is whatever the public repo ignores — `rules/`, private `skills/*`, `Agent Learning/`, `.obsidian/`, `review-state/` (goldfish ledgers and merged results; raw transcripts and logs are excluded), plus machine-specific profile files (`profiles/omp/mcp.json`, `profiles/claude/RULES.md`) — versioned by a second git dir, `.git-private`, pushed to the private repo `vincecao/agent-commons-sync`. The public repo never sees it.
 
 ```bash
-pnpm backup save && pnpm backup push   # back up (save also picks up new files)
-pnpm backup pull                       # take another machine's backup
-pnpm backup status                     # tracked files only; new files appear after save
+pnpm backup sync    # save + pull (ff or rebase) + push; stops on conflict, never forces
+pnpm check          # both repos: status, ahead/behind, "all synced" or pending (exit 1)
+pnpm backup status  # preview: dirty tracked files + new files save would add
 ```
 
-Before calling it synced, check both: `git status -sb` and `pnpm backup git status -sb` show no changes and no ahead/behind.
+Daily flow is `pnpm sync`, `pnpm backup sync`, `pnpm check`. `pnpm sync` warns (non-blocking) when private content is unsaved or a repo is out of step; `AGENT_COMMONS_NO_CHECK=1` silences it. Don't call it synced until `pnpm check` prints `all synced`.
 
 Fresh machine, after cloning the public repo:
 
