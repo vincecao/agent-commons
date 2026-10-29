@@ -26,12 +26,15 @@ pnpm sync --only cursor
 
 ## Private payload backup
 
-The payload is whatever the public repo ignores — `rules/`, private `skills/*`, `Agent Learning/`, `.obsidian/`, plus machine-specific profile files (`profiles/omp/mcp.json`, `profiles/claude/RULES.md`) — versioned by a second git dir, `.git-private`, pushed to the private repo `vincecao/agent-commons-sync`. The public repo never sees it.
+The payload is whatever the public repo ignores — `rules/`, private `skills/*`, `Agent Learning/`, `.obsidian/`, `review-state/` (goldfish ledgers and merged results; raw transcripts and logs are excluded), plus machine-specific profile files (`profiles/omp/mcp.json`, `profiles/claude/RULES.md`) — versioned by a second git dir, `.git-private`, pushed to the private repo `vincecao/agent-commons-sync`. The public repo never sees it.
 
 ```bash
-pnpm backup save && pnpm backup push
-pnpm backup status
+pnpm backup save && pnpm backup push   # back up (save also picks up new files)
+pnpm backup pull                       # take another machine's backup
+pnpm backup status                     # tracked files only; new files appear after save
 ```
+
+Before calling it synced, check both: `git status -sb` and `pnpm backup git status -sb` show no changes and no ahead/behind.
 
 Fresh machine, after cloning the public repo:
 

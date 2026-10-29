@@ -4,6 +4,24 @@ Shared agent rules, skills, profiles, and sync tooling for local AI agent CLIs.
 
 `agent-commons` is a git-backed source of truth for personal agent defaults. It keeps reusable instructions in this repo, then symlinks them into each tool's native config directory so Claude, OMP, Codex, OpenCode, Gemini, Cursor, and `.agents`-based tools read the same rules/skills without duplicated files.
 
+## At a glance
+
+- **What:** one folder (`~/agent-commons`) that holds your agent rules, skills and profiles, and symlinks them into every agent CLI's config dir.
+- **Two repos, one folder:** the public repo (`.git`, `vincecao/agent-commons`) holds the tooling. The private repo (`.git-private`, `vincecao/agent-commons-sync`) holds everything the public `.gitignore` ignores: your personal rules, skills, notes and review results.
+- **Why split:** the tooling is shareable; personal prompts, machine paths and review data are not. The public `.gitignore` is the only list: ignored = private.
+
+### Daily commands
+
+| When | Run |
+|---|---|
+| Changed a rule, skill or profile | `pnpm sync` (add `--dry-run` to preview) |
+| Changed the tooling (tracked files) | `git add … && git commit && git push` |
+| Back up private content | `pnpm backup save && pnpm backup push` |
+| Get private content from another machine | `pnpm backup pull` |
+| Check private repo | `pnpm backup status` (tracked files only; new files show up after `save`) |
+
+Check both repos are pushed: `git status -sb` and `pnpm backup git status -sb`.
+
 ## What this repo does
 
 - Stores private local rule files in ignored `rules/`.
@@ -98,6 +116,7 @@ pnpm sync --home /tmp/agent-home --only cursor
 !/skills/obsidian-vault/**
 /Agent Learning/
 /.obsidian/
+/review-state/
 /profiles/omp/mcp.json
 /profiles/claude/RULES.md
 ```
@@ -127,11 +146,25 @@ Profile entrypoints stay public so a fresh clone of the harness alone still link
 
 ```bash
 pnpm backup init            # once per machine: create .git-private, wire the remote
-pnpm backup save            # stage + commit payload changes
+pnpm backup save [message]  # stage + commit payload changes (new and modified)
 pnpm backup push            # publish to the private remote
+pnpm backup pull            # fast-forward from the private remote
 pnpm backup status          # tracked payload count + dirty tracked files
+pnpm backup restore [--force]  # fresh machine: clone + check out the payload
 pnpm backup git log --stat  # any git command against the private repo
 ```
+
+Not backed up even though ignored (see `PAYLOAD_EXCLUDES` in `private-backup.sh`): `node_modules/`, `dist/`, `coverage/`, `.vitest/`, `tmp/`, `.env*`, `*.log`, `*.backup.*`, `.DS_Store`, and the bulky review-state files below.
+
+### Review results (`review-state/`)
+
+Code-review runs (goldfish) write here, one folder per repo: `review-state/<owner>-<repo>/goldfish/`. The review skill and the local review dashboard both pass `--out` and `--ledger` to that folder, so they share one ledger and never rerun the same lane on the same head.
+
+| Backed up | Not backed up |
+|---|---|
+| `lane-ledger.json`, `*/merged.json`, `*/review.json`, `*/threads.json` | `*.raw.txt` (raw lane transcripts), `*threads.txt`, `*resp.json`, `run.log` |
+
+Per-PR state files (`.agent-review-state/<pr>.json`) stay in each code clone; only goldfish output lives here.
 
 Override the remote with `AGENT_COMMONS_PRIVATE_REMOTE`.
 
@@ -155,6 +188,15 @@ cp examples/rules/defaults.md rules/defaults.md
 ```
 
 No path is tracked by both repos, so `git status` stays clean on both sides: the public repo ignores the payload, and the private repo tracks only payload paths (`status.showUntrackedFiles=no` keeps public-repo files out of its view). `pnpm backup save` untracks anything that later becomes public-tracked, so the two sets cannot drift into overlap.
+
+## Troubleshooting
+
+- **`pnpm backup status` doesn't list a new private file.** Expected: it only shows tracked files. Run `pnpm backup save`; it prints the commit. To preview first: `git ls-files --others --ignored --exclude-standard` (then subtract the excludes above).
+- **A file should be private but shows in public `git status`.** Add it to `.gitignore`, then `git rm --cached <file>` and `pnpm backup save`.
+- **A private file should become public.** Remove it from `.gitignore`, `git add` it; the next `pnpm backup save` untracks it from the private repo.
+- **`pnpm backup push` rejected.** Another machine pushed first: `pnpm backup pull`, then push again. Never force-push.
+- **`restore` refuses to run.** Local files differ from the backup; save them (`pnpm backup save`) or rerun with `--force` to overwrite.
+- **A sync replaced my file.** It was moved to `*.backup.<timestamp>` next to the link; copy it back into `rules/`, `skills/` or `profiles/` and re-run `pnpm sync`.
 
 ## Dynamic linking model
 
