@@ -32,6 +32,10 @@ PAYLOAD_EXCLUDES=(
   ':(exclude).env'
   ':(exclude).env.*'
   ':(exclude)*.log'
+  # review-state: keep lane-ledger.json, merged.json, review.json; skip raw lane transcripts and thread dumps
+  ':(exclude)review-state/*.raw.txt'
+  ':(exclude)review-state/*threads.txt'
+  ':(exclude)review-state/*resp.json'
 )
 
 # Public-repo ignores are the source of truth; anything it tracks stays out.

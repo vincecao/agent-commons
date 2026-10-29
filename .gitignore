@@ -35,6 +35,9 @@ yarn-error.log*
 /Agent Learning/
 /.obsidian/
 
+# review results (goldfish ledger + merged.json), shared by Review and the dashboard's local queue (private payload)
+/review-state/
+
 # machine- or employer-specific profile entrypoints (private payload)
 /profiles/omp/mcp.json
 /profiles/claude/RULES.md
